@@ -207,13 +207,30 @@ export function initSchema() {
   ensureColumn('emergency_incidents', 'expected_return_date', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('users', 'team_id', "TEXT NOT NULL DEFAULT ''");
 
-  // Ensure the single workshop User ID exists
-  const uCount = db.prepare('SELECT COUNT(*) AS cnt FROM users').get().cnt;
-  if (uCount === 0) {
+  // Ensure default admin user with uuds@123 exists
+  const adminRow = db.prepare('SELECT user_id FROM users WHERE user_id = ?').get('admin');
+  if (!adminRow) {
+    db.prepare(`
+      INSERT INTO users (user_id, display_name, role, team_id, password_hash)
+      VALUES ('admin', 'System Administrator', 'ADMIN', '', ?)
+    `).run(hashPassword('uuds@123'));
+  } else {
+    db.prepare(`
+      UPDATE users SET password_hash = ? WHERE user_id = 'admin'
+    `).run(hashPassword('uuds@123'));
+  }
+
+  // Also ensure UUDS-DXB exists and has uuds@123
+  const uudsRow = db.prepare('SELECT user_id FROM users WHERE user_id = ?').get('UUDS-DXB');
+  if (!uudsRow) {
     db.prepare(`
       INSERT INTO users (user_id, display_name, role, team_id, password_hash)
       VALUES ('UUDS-DXB', 'Workshop Manager', 'ADMIN', '', ?)
-    `).run(hashPassword('uuds2026'));
+    `).run(hashPassword('uuds@123'));
+  } else {
+    db.prepare(`
+      UPDATE users SET password_hash = ? WHERE user_id = 'UUDS-DXB'
+    `).run(hashPassword('uuds@123'));
   }
 
   // Fix SISIDU HASITHA duplicate UUDS ID -> UUDS-1292
