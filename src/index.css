@@ -1,0 +1,169 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f1f5f9;
+    color: #0f172a;
+  }
+}
+
+/* Custom sleek scrollbars for dense roster grids */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(24px, -28px, 0) scale(1.06); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-26px, 22px, 0) scale(1.08); }
+}
+
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(18px) scale(0.985); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes logoPulse {
+  0%, 100% { filter: drop-shadow(0 0 18px rgba(14, 165, 233, 0.35)); transform: translateY(0); }
+  50% { filter: drop-shadow(0 0 28px rgba(56, 189, 248, 0.6)); transform: translateY(-3px); }
+}
+
+@keyframes radarSweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dashFlow {
+  to { stroke-dashoffset: -120; }
+}
+
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* Naughty & Playful Sidebar Icon Keyframes */
+@keyframes naughtyWiggle {
+  0% { transform: scale(1) rotate(0deg); }
+  15% { transform: scale(1.22) rotate(-16deg); }
+  32% { transform: scale(1.18) rotate(14deg); }
+  50% { transform: scale(1.26) rotate(-10deg) translateY(-2px); }
+  68% { transform: scale(1.15) rotate(7deg) translateY(0); }
+  84% { transform: scale(1.2) rotate(-3deg); }
+  100% { transform: scale(1.14) rotate(0deg); }
+}
+
+@keyframes naughtyBounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(-4px) scale(0.88, 1.18) rotate(-6deg); }
+  45% { transform: translateY(2px) scale(1.16, 0.86) rotate(5deg); }
+  70% { transform: translateY(-2px) scale(0.95, 1.05) rotate(-2deg); }
+  85% { transform: translateY(0) scale(1.04, 0.98); }
+}
+
+@keyframes naughtyTeasePulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.14) rotate(-8deg); }
+  50% { transform: scale(1.1) rotate(8deg); }
+  75% { transform: scale(1.16) rotate(-4deg); }
+}
+
+@keyframes naughtyKeyTurn {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.25) rotate(-35deg); }
+  55% { transform: scale(1.3) rotate(50deg); }
+  80% { transform: scale(1.15) rotate(-15deg); }
+}
+
+@keyframes naughtyDoorPeek {
+  0%, 100% { transform: scale(1) translateX(0) rotate(0deg); }
+  25% { transform: scale(1.2) translateX(3px) rotate(14deg); }
+  55% { transform: scale(1.22) translateX(-2px) rotate(-12deg); }
+  80% { transform: scale(1.1) translateX(1px) rotate(4deg); }
+}
+
+@keyframes cheekyPop {
+  0% { transform: scale(0.8) rotate(-10deg); }
+  50% { transform: scale(1.28) rotate(8deg); }
+  75% { transform: scale(0.95) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.animate-float-slow { animation: floatSlow 12s ease-in-out infinite; }
+.animate-float-reverse { animation: floatReverse 15s ease-in-out infinite; }
+.animate-fade-up { animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-up-delay { animation: fadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.12s both; }
+.animate-logo-pulse { animation: logoPulse 4.5s ease-in-out infinite; }
+.animate-radar { animation: radarSweep 26s linear infinite; }
+.animate-dash-flow { animation: dashFlow 6s linear infinite; }
+.animate-shake { animation: shakeX 0.38s ease-in-out; }
+
+/* Naughty animation utility classes */
+.animate-naughty-wiggle { animation: naughtyWiggle 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-naughty-bounce { animation: naughtyBounce 1.8s ease-in-out infinite; }
+.animate-naughty-tease { animation: naughtyTeasePulse 2.4s ease-in-out infinite; }
+.animate-key-turn { animation: naughtyKeyTurn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-door-peek { animation: naughtyDoorPeek 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-cheeky-pop { animation: cheekyPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Hover triggers for group parents */
+.group:hover .group-hover-naughty-wiggle {
+  animation: naughtyWiggle 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.group:hover .group-hover-key-turn {
+  animation: naughtyKeyTurn 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.group:hover .group-hover-door-peek {
+  animation: naughtyDoorPeek 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.group:hover .group-hover-cheeky-pop {
+  animation: cheekyPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media print {
+  @page {
+    size: A3 landscape;
+    margin: 8mm;
+  }
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .roster-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  table {
+    font-size: 8px !important;
+    width: 100% !important;
+  }
+  th, td {
+    padding: 2px 3px !important;
+  }
+}

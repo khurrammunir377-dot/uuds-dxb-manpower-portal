@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.vercel/
+data/backups/
+data/uuds_roster.db-shm
+data/uuds_roster.db-wal
+.env
+.env.local
+.DS_Store
+Thumbs.db
