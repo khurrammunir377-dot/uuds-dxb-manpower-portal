@@ -8,3 +8,5 @@ data/uuds_roster.db-wal
 .env.local
 .DS_Store
 Thumbs.db
+
+.vercel
