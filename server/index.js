@@ -57,6 +57,30 @@ function parseCookies(cookieHeader = '') {
   return out;
 }
 
+const SESSION_SECRET = process.env.SESSION_SECRET || 'uuds-dxb-jwt-auth-secret-key-2026-portal';
+
+function signToken(payload) {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+function verifyToken(tokenStr) {
+  if (!tokenStr || typeof tokenStr !== 'string') return null;
+  const parts = tokenStr.split('.');
+  if (parts.length !== 2) return null;
+  const [data, sig] = parts;
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('base64url');
+  if (sig !== expectedSig) return null;
+  try {
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 function getSessionUser(req) {
   const cookies = parseCookies(req.headers.cookie || '');
   const authHeader = req.headers.authorization || '';
@@ -64,25 +88,41 @@ function getSessionUser(req) {
   const token = bearer || cookies.uuds_session || '';
   if (!token) return null;
 
-  const row = db.prepare(`
-    SELECT s.token, s.expires_at, u.user_id, u.display_name, u.role, u.team_id
-    FROM sessions s
-    JOIN users u ON u.user_id = s.user_id
-    WHERE s.token = ?
-  `).get(token);
-
-  if (!row) return null;
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
-    return null;
+  // 1. Check stateless signed token (works across all serverless lambda containers)
+  const payload = verifyToken(token);
+  if (payload && payload.userId) {
+    return {
+      userId: payload.userId,
+      displayName: payload.displayName || payload.userId,
+      role: payload.role || 'ADMIN',
+      teamId: payload.teamId || '',
+      token,
+    };
   }
-  return {
-    userId: row.user_id,
-    displayName: row.display_name,
-    role: row.role,
-    teamId: row.team_id || '',
-    token: row.token,
-  };
+
+  // 2. Fallback to DB sessions table
+  try {
+    const row = db.prepare(`
+      SELECT s.token, s.expires_at, u.user_id, u.display_name, u.role, u.team_id
+      FROM sessions s
+      JOIN users u ON u.user_id = s.user_id
+      WHERE s.token = ?
+    `).get(token);
+
+    if (row && new Date(row.expires_at).getTime() >= Date.now()) {
+      return {
+        userId: row.user_id,
+        displayName: row.display_name,
+        role: row.role,
+        teamId: row.team_id || '',
+        token: row.token,
+      };
+    }
+  } catch (err) {
+    // Ignore DB session error
+  }
+
+  return null;
 }
 
 function canEditTeam(user, teamId) {
@@ -143,11 +183,23 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'Invalid User ID or Password. Please try again.' });
   }
 
-  const token = crypto.randomBytes(32).toString('hex');
   const maxAgeDays = remember ? 30 : 1;
-  const expiresAt = new Date(Date.now() + maxAgeDays * 86400 * 1000).toISOString();
+  const exp = Date.now() + maxAgeDays * 86400 * 1000;
+  const payload = {
+    userId: user.user_id,
+    displayName: user.display_name,
+    role: user.role,
+    teamId: user.team_id || '',
+    exp,
+  };
+  const token = signToken(payload);
 
-  db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.user_id, expiresAt);
+  try {
+    const expiresAt = new Date(exp).toISOString();
+    db.prepare('INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)').run(token, user.user_id, expiresAt);
+  } catch (err) {
+    // Ignore DB session error
+  }
 
   const cookieParts = [
     `uuds_session=${encodeURIComponent(token)}`,
@@ -160,6 +212,7 @@ app.post('/api/auth/login', (req, res) => {
 
   res.json({
     ok: true,
+    token,
     user: { userId: user.user_id, displayName: user.display_name, role: user.role, teamId: user.team_id || '' },
   });
 });

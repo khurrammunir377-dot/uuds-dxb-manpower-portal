@@ -17,7 +17,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { apiFetch, setUnauthorizedHandler } from './api.js';
+import { apiFetch, setAuthToken, setUnauthorizedHandler } from './api.js';
 import LoginPage from './components/LoginPage.jsx';
 import CommandDashboard from './components/CommandDashboard.jsx';
 import MasterRosterGrid from './components/MasterRosterGrid.jsx';
@@ -178,6 +178,7 @@ export default function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => {
       sessionStorage.removeItem('uuds_session_active');
+      setAuthToken('');
       setCurrentUser(null);
     });
     // Always start at Login Page on fresh site open (unless already logged in this tab session)
@@ -190,18 +191,21 @@ export default function App() {
       .then((res) => setCurrentUser(res.user))
       .catch(() => {
         sessionStorage.removeItem('uuds_session_active');
+        setAuthToken('');
         setCurrentUser(null);
       })
       .finally(() => setAuthChecked(true));
   }, []);
 
-  const handleLoginSuccess = (user) => {
+  const handleLoginSuccess = (user, token) => {
     sessionStorage.setItem('uuds_session_active', 'true');
+    if (token) setAuthToken(token);
     setCurrentUser(user);
   };
 
   const handleLogout = async () => {
     sessionStorage.removeItem('uuds_session_active');
+    setAuthToken('');
     await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     setCurrentUser(null);
     setOverview(null);

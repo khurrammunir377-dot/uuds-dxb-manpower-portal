@@ -89,11 +89,40 @@ export function setUnauthorizedHandler(fn) {
   unauthorizedHandler = fn;
 }
 
+export function getAuthToken() {
+  try {
+    return sessionStorage.getItem('uuds_token') || localStorage.getItem('uuds_token') || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (token) {
+      sessionStorage.setItem('uuds_token', token);
+      localStorage.setItem('uuds_token', token);
+    } else {
+      sessionStorage.removeItem('uuds_token');
+      localStorage.removeItem('uuds_token');
+    }
+  } catch {
+    // ignore storage exceptions
+  }
+}
+
 export async function apiFetch(url, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
   const res = await fetch(url, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    credentials: 'include',
     ...options,
+    headers,
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && unauthorizedHandler && !url.includes('/api/auth/')) {

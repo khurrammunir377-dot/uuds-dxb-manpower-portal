@@ -27,7 +27,7 @@ export default function LoginPage({ onSuccess }) {
         method: 'POST',
         body: JSON.stringify({ userId: userId.trim(), password, remember: true }),
       });
-      onSuccess(res.user);
+      onSuccess(res.user, res.token);
     } catch (err) {
       setError(err.message || 'Invalid User ID or Password. Please try again.');
       setShakeKey((k) => k + 1);
