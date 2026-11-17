@@ -491,8 +491,8 @@ export default function QuickDatesEditor({
                 <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 w-12 text-center">
                   #
                 </th>
-                <th className="sticky left-0 z-30 bg-slate-900 py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-white min-w-[210px]">
-                  Staff Name &amp; ID
+                <th className="sticky left-0 z-30 bg-slate-900 py-3 px-3.5 text-xs font-black uppercase tracking-wider text-white min-w-[240px]">
+                  Staff Name &amp; Employee ID
                 </th>
                 <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 min-w-[130px]">
                   Team
@@ -553,19 +553,24 @@ export default function QuickDatesEditor({
                       </td>
 
                       {/* Sticky Staff Name & UUDS No */}
-                      <td className={`sticky left-0 z-10 py-2 px-3 transition-colors ${
-                        modified ? 'bg-amber-50/90' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
-                      } border-r border-slate-100 shadow-xs`}>
-                        <div className="flex flex-col">
-                          <span className="font-extrabold text-slate-900 text-xs truncate max-w-[190px]">
+                      <td className={`sticky left-0 z-10 py-2.5 px-3.5 transition-colors ${
+                        modified ? 'bg-amber-50/95' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
+                      } border-r border-slate-200 shadow-sm min-w-[240px]`}>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="font-black text-slate-900 text-xs sm:text-sm tracking-tight leading-tight">
                             {emp.name}
                           </span>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="rounded bg-slate-900 px-1.5 py-0.2 font-mono text-[9.5px] font-black text-sky-400">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="inline-flex items-center rounded-lg border border-sky-500/40 bg-slate-950 px-2.5 py-0.5 font-mono text-xs sm:text-sm font-black tracking-wider text-sky-300 shadow-xs">
                               {emp.uuds_no || 'NO-ID'}
                             </span>
+                            {emp.contingent_no && (
+                              <span className="inline-flex items-center rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">
+                                C: {emp.contingent_no}
+                              </span>
+                            )}
                             {modified && (
-                              <span className="rounded bg-amber-500 px-1 py-0.2 text-[8.5px] font-black text-white uppercase tracking-wider">
+                              <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[9.5px] font-black text-white uppercase tracking-wider shadow-xs">
                                 Edited
                               </span>
                             )}
