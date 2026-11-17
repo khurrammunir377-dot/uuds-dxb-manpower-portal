@@ -1601,6 +1601,62 @@ app.post('/api/employees', (req, res) => {
   res.json({ ok: true, id: empId });
 });
 
+app.patch('/api/employees/batch-dates', (req, res) => {
+  const { updates = [], month = '2026-11' } = req.body;
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'No updates provided' });
+  }
+
+  const actor = req.user?.displayName || req.body.actor || 'Workshop Manager';
+
+  const updateStmt = db.prepare(`
+    UPDATE employees
+    SET airside_pass_expiry = ?,
+        contingent_card_expiry = ?,
+        medical_expiry = ?,
+        visa_expiry = ?,
+        join_date = ?,
+        dxb_shift_date = ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `);
+
+  let count = 0;
+  runTx(() => {
+    for (const item of updates) {
+      if (!item.id) continue;
+      const existing = db.prepare('SELECT id, name, team_id, airside_pass_expiry, contingent_card_expiry, visa_expiry, join_date, dxb_shift_date FROM employees WHERE id = ?').get(item.id);
+      if (!existing) continue;
+
+      const airside = item.airsidePassExpiry !== undefined ? String(item.airsidePassExpiry).trim() : (existing.airside_pass_expiry || '');
+      const contingent = item.contingentCardExpiry !== undefined ? String(item.contingentCardExpiry).trim() : (existing.contingent_card_expiry || '');
+      const visa = item.visaExpiry !== undefined ? String(item.visaExpiry).trim() : (existing.visa_expiry || '');
+      const join = item.joinDate !== undefined ? String(item.joinDate).trim() : (existing.join_date || '');
+      const dxbShift = item.dxbShiftDate !== undefined ? String(item.dxbShiftDate).trim() : (existing.dxb_shift_date || '');
+
+      updateStmt.run(
+        airside,
+        contingent,
+        contingent,
+        visa,
+        join,
+        dxbShift,
+        item.id
+      );
+      count++;
+    }
+
+    recordAudit({
+      month,
+      actionType: 'BATCH_DATES_UPDATED',
+      reason: `Quick batch date update across ${count} staff record(s)`,
+      actor,
+    });
+  });
+
+  res.json({ ok: true, count });
+});
+
 app.patch('/api/employees/:id', (req, res) => {
   const id = Number(req.params.id);
   const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);

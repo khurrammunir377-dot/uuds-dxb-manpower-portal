@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   CalendarPlus,
+  CalendarCheck2,
   ChevronRight,
   ClipboardList,
   History,
@@ -25,6 +26,7 @@ import EmergencyHub from './components/EmergencyHub.jsx';
 import MonthlyBuilder from './components/MonthlyBuilder.jsx';
 import ImportRoster from './components/ImportRoster.jsx';
 import StaffDirectory from './components/StaffDirectory.jsx';
+import QuickDatesEditor from './components/QuickDatesEditor.jsx';
 import RecordsAudit from './components/RecordsAudit.jsx';
 
 const NAV_ITEMS = [
@@ -99,6 +101,18 @@ const NAV_ITEMS = [
     activeGlow: 'from-rose-950/70 via-slate-900 to-slate-900 border-rose-500/50 text-rose-200',
     accentBorder: 'bg-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.8)]',
     glowColor: 'rgba(244, 63, 94, 0.45)',
+  },
+  {
+    id: 'dates-editor',
+    label: 'Quick Dates Editor',
+    icon: CalendarCheck2,
+    subtitle: 'Spreadsheet Date Updates',
+    iconColor: 'text-teal-400',
+    iconHoverColor: 'text-teal-300',
+    badgeBg: 'bg-teal-500/15 border-teal-500/35 text-teal-400 group-hover:bg-teal-500/25 group-hover:border-teal-400/60 shadow-teal-500/20',
+    activeGlow: 'from-teal-950/70 via-slate-900 to-slate-900 border-teal-500/50 text-teal-200',
+    accentBorder: 'bg-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.8)]',
+    glowColor: 'rgba(20, 184, 166, 0.45)',
   },
   {
     id: 'records',
@@ -693,6 +707,16 @@ export default function App() {
               teams={meta.teams}
               employees={employees}
               presets={meta.presets}
+              activeMonth={activeMonth}
+              onDataChanged={() => loadAll()}
+              notify={notify}
+            />
+          )}
+
+          {activeTab === 'dates-editor' && (
+            <QuickDatesEditor
+              teams={meta.teams}
+              employees={employees}
               activeMonth={activeMonth}
               onDataChanged={() => loadAll()}
               notify={notify}
