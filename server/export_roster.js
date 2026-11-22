@@ -472,3 +472,202 @@ export async function generatePayrollPdfBuffer(db, month, teamId = 'all') {
     if (fs.existsSync(tmpPdf)) fs.unlinkSync(tmpPdf);
   }
 }
+
+export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId = 'all') {
+  const monthMeta = db.prepare('SELECT * FROM roster_months WHERE month = ?').get(month);
+  const monthLabel = monthMeta?.label || month;
+
+  let query = `
+    SELECT ot.*, e.name AS emp_name, e.uuds_no, e.contingent_no, e.skill, t.name AS team_name
+    FROM overtime_records ot
+    JOIN employees e ON e.id = ot.employee_id
+    JOIN teams t ON t.id = ot.team_id
+    WHERE ot.month = ?
+  `;
+  const params = [month];
+  if (teamId && teamId !== 'all') {
+    query += ' AND ot.team_id = ?';
+    params.push(teamId);
+  }
+  query += ' ORDER BY ot.day ASC, ot.team_id ASC, e.name ASC';
+  const rows = db.prepare(query).all(...params);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'UUDS DXB Workshop Command';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Approved Overtime Form', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+  };
+
+  // Header Title Row 1
+  ws.mergeCells(1, 1, 1, 15);
+  const title1 = ws.getCell(1, 1);
+  title1.value = 'UUDS AERO SERVICES LLC — DUBAI INTERNATIONAL AIRPORT (DXB)';
+  title1.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  title1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+  title1.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(1).height = 26;
+
+  // Header Title Row 2
+  ws.mergeCells(2, 1, 2, 15);
+  const title2 = ws.getCell(2, 1);
+  title2.value = `OFFICIAL APPROVED MONTHLY OVERTIME RECORD FORM — ${monthLabel.toUpperCase()} (1 ROW PER EMPLOYEE PER DAY)`;
+  title2.font = { bold: true, size: 11, color: { argb: 'FFE2E8F0' } };
+  title2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  title2.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(2).height = 22;
+
+  // Policy Note Row 3
+  ws.mergeCells(3, 1, 3, 15);
+  const noteCell = ws.getCell(3, 1);
+  noteCell.value = 'RULE: FIRST 2 HOURS OF EXTRA DUTY HAVE NO OVERTIME. OT APPLIES AFTER 2 HOURS DEDUCTION. (e.g. Duty till 20:00, finish 23:00 = 3h extra - 2h buffer = 1.0h Approved OT).';
+  noteCell.font = { italic: true, size: 9, color: { argb: 'FFB45309' } };
+  noteCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
+  noteCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(3).height = 20;
+
+  // Table Column Headers
+  const headers = [
+    'SN', 'Date', 'UUDS ID', 'Contingent No', 'Staff Name', 'Trade / Skill',
+    'Team', 'Shift', 'Duty End', 'Finish Time', 'Total Extra (Hrs)',
+    '1st 2-Hrs Non-OT', 'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Approval'
+  ];
+  const hRow = ws.getRow(5);
+  hRow.height = 24;
+  headers.forEach((h, i) => {
+    const c = hRow.getCell(i + 1);
+    c.value = h;
+    c.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
+    c.alignment = { vertical: 'middle', horizontal: i <= 5 || i === 13 ? 'left' : 'center', wrapText: true };
+    c.border = thinBorder;
+  });
+
+  let totalExtra = 0;
+  let totalDeducted = 0;
+  let totalApproved = 0;
+
+  let rIdx = 6;
+  rows.forEach((r, idx) => {
+    const row = ws.getRow(rIdx);
+    row.height = 20;
+    totalExtra += Number(r.total_extra_hours || 0);
+    totalDeducted += Number(r.buffer_hours || 2.0);
+    totalApproved += Number(r.approved_ot_hours || 0);
+
+    const values = [
+      idx + 1,
+      r.date_str || `2026-11-${String(r.day).padStart(2, '0')}`,
+      r.uuds_no || '-',
+      r.contingent_no || '-',
+      r.emp_name,
+      r.skill,
+      r.team_name,
+      r.shift_code || 'D',
+      r.scheduled_end_time || '20:00',
+      r.actual_end_time,
+      Number(r.total_extra_hours).toFixed(1),
+      `-${Number(r.buffer_hours || 2.0).toFixed(1)}`,
+      Number(r.approved_ot_hours).toFixed(1),
+      `${r.aircraft_reg ? r.aircraft_reg + ' · ' : ''}${r.reason || ''}${r.location_bay ? ' (' + r.location_bay + ')' : ''}`,
+      `${r.team_manager_status === 'APPROVED' ? 'APPROVED' : 'PENDING'} - ${r.team_manager_name || 'Supervisor'}`
+    ];
+
+    values.forEach((v, i) => {
+      const c = row.getCell(i + 1);
+      c.value = v;
+      c.font = {
+        size: 9,
+        bold: i === 12,
+        color: { argb: i === 12 ? 'FF047857' : (i === 11 ? 'FFB45309' : 'FF0F172A') }
+      };
+      if (i === 12) {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+      }
+      c.alignment = { vertical: 'middle', horizontal: (i === 4 || i === 5 || i === 13 || i === 14) ? 'left' : 'center' };
+      c.border = thinBorder;
+    });
+    rIdx++;
+  });
+
+  // Totals Row
+  const totalRow = ws.getRow(rIdx);
+  totalRow.height = 24;
+  totalRow.getCell(1).value = 'TOTALS';
+  ws.mergeCells(rIdx, 1, rIdx, 10);
+  totalRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF0F172A' } };
+  totalRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'right' };
+  totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  totalRow.getCell(11).value = totalExtra.toFixed(1);
+  totalRow.getCell(11).font = { bold: true, size: 10 };
+  totalRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  totalRow.getCell(12).value = `-${totalDeducted.toFixed(1)}`;
+  totalRow.getCell(12).font = { bold: true, size: 10, color: { argb: 'FFB45309' } };
+  totalRow.getCell(12).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  totalRow.getCell(13).value = totalApproved.toFixed(1);
+  totalRow.getCell(13).font = { bold: true, size: 11, color: { argb: 'FF047857' } };
+  totalRow.getCell(13).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+
+  ws.mergeCells(rIdx, 14, rIdx, 15);
+  totalRow.getCell(14).value = `${rows.length} Total Duty OT Records`;
+  totalRow.getCell(14).font = { bold: true, size: 9, color: { argb: 'FF475569' } };
+  totalRow.getCell(14).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(14).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  for (let c = 1; c <= 15; c++) {
+    totalRow.getCell(c).border = thinBorder;
+  }
+
+  // Signature Block at Bottom
+  rIdx += 3;
+  ws.getRow(rIdx).height = 20;
+  ws.getCell(rIdx, 2).value = 'APPROVAL & AUTHORIZATION SIGN-OFF:';
+  ws.getCell(rIdx, 2).font = { bold: true, size: 10, underline: true, color: { argb: 'FF0F172A' } };
+
+  rIdx += 1;
+  // Box 1: Team Manager / Supervisor
+  ws.mergeCells(rIdx, 2, rIdx + 3, 5);
+  const box1 = ws.getCell(rIdx, 2);
+  box1.value = 'TEAM MANAGER / SUPERVISOR:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
+  box1.font = { size: 9 };
+  box1.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  box1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+  box1.border = thinBorder;
+
+  // Box 2: Workshop Manager
+  ws.mergeCells(rIdx, 7, rIdx + 3, 10);
+  const box2 = ws.getCell(rIdx, 7);
+  box2.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: Mr. Khurram Munir\nSignature: __________________   Date: __/__/2026';
+  box2.font = { size: 9, bold: true };
+  box2.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  box2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+  box2.border = thinBorder;
+
+  // Box 3: Project Manager
+  ws.mergeCells(rIdx, 12, rIdx + 3, 15);
+  const box3 = ws.getCell(rIdx, 12);
+  box3.value = 'PROJECT MANAGER APPROVAL:\n\nName: Project Manager - DXB Operations\nSignature: __________________   Date: __/__/2026';
+  box3.font = { size: 9, bold: true };
+  box3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  box3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+  box3.border = thinBorder;
+
+  const colWidths = [5, 13, 13, 14, 24, 18, 16, 7, 10, 11, 13, 14, 14, 28, 24];
+  colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}

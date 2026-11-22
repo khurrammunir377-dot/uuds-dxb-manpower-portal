@@ -4,6 +4,7 @@ import {
   CalendarCheck2,
   ChevronRight,
   ClipboardList,
+  ClockAlert,
   History,
   KeyRound,
   LayoutDashboard,
@@ -27,6 +28,7 @@ import MonthlyBuilder from './components/MonthlyBuilder.jsx';
 import ImportRoster from './components/ImportRoster.jsx';
 import StaffDirectory from './components/StaffDirectory.jsx';
 import QuickDatesEditor from './components/QuickDatesEditor.jsx';
+import OvertimeHub from './components/OvertimeHub.jsx';
 import RecordsAudit from './components/RecordsAudit.jsx';
 
 const NAV_ITEMS = [
@@ -113,6 +115,18 @@ const NAV_ITEMS = [
     activeGlow: 'from-teal-950/70 via-slate-900 to-slate-900 border-teal-500/50 text-teal-200',
     accentBorder: 'bg-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.8)]',
     glowColor: 'rgba(20, 184, 166, 0.45)',
+  },
+  {
+    id: 'overtime',
+    label: 'Approved OT Form',
+    icon: ClockAlert,
+    subtitle: '1 Row / Staff / Day · 2h Deduct',
+    iconColor: 'text-amber-400',
+    iconHoverColor: 'text-amber-300',
+    badgeBg: 'bg-amber-500/15 border-amber-500/35 text-amber-400 group-hover:bg-amber-500/25 group-hover:border-amber-400/60 shadow-amber-500/20',
+    activeGlow: 'from-amber-950/70 via-slate-900 to-slate-900 border-amber-500/50 text-amber-200',
+    accentBorder: 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.8)]',
+    glowColor: 'rgba(245, 158, 11, 0.45)',
   },
   {
     id: 'records',
@@ -719,6 +733,16 @@ export default function App() {
               employees={employees}
               activeMonth={activeMonth}
               onDataChanged={() => loadAll()}
+              notify={notify}
+            />
+          )}
+
+          {activeTab === 'overtime' && (
+            <OvertimeHub
+              activeMonth={activeMonth}
+              teams={meta.teams}
+              employees={employees}
+              currentUser={currentUser}
               notify={notify}
             />
           )}

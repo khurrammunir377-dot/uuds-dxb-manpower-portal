@@ -185,6 +185,34 @@ export function initSchema() {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       PRIMARY KEY (month, team_id)
     );
+
+    CREATE TABLE IF NOT EXISTS overtime_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      month TEXT NOT NULL REFERENCES roster_months(month),
+      day INTEGER NOT NULL,
+      date_str TEXT NOT NULL,
+      employee_id INTEGER NOT NULL REFERENCES employees(id),
+      team_id TEXT NOT NULL REFERENCES teams(id),
+      shift_code TEXT NOT NULL DEFAULT 'D',
+      scheduled_start_time TEXT NOT NULL DEFAULT '08:00',
+      scheduled_end_time TEXT NOT NULL DEFAULT '20:00',
+      actual_end_time TEXT NOT NULL,
+      total_extra_hours REAL NOT NULL,
+      buffer_hours REAL NOT NULL DEFAULT 2.0,
+      approved_ot_hours REAL NOT NULL,
+      reason TEXT NOT NULL DEFAULT '',
+      aircraft_reg TEXT NOT NULL DEFAULT '',
+      work_order_no TEXT NOT NULL DEFAULT '',
+      location_bay TEXT NOT NULL DEFAULT 'DXB Ramp',
+      team_manager_status TEXT NOT NULL DEFAULT 'APPROVED',
+      team_manager_name TEXT NOT NULL DEFAULT 'Shift Supervisor',
+      remarks TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_ot_month ON overtime_records(month, day);
+    CREATE INDEX IF NOT EXISTS idx_ot_emp ON overtime_records(employee_id, month);
   `);
 
   const ensureColumn = (table, col, def) => {
@@ -373,6 +401,70 @@ export function initSchema() {
     } catch (e) {
       console.error('Error ensuring A-Check team:', e.message);
     }
+  }
+
+  // Seed sample Overtime records for demonstration if table is empty
+  try {
+    const otCount = db.prepare('SELECT COUNT(*) AS cnt FROM overtime_records').get().cnt;
+    if (otCount === 0) {
+      const activeEmps = db.prepare("SELECT id, team_id, name, uuds_no, contingent_no, skill FROM employees WHERE status = 'ACTIVE' LIMIT 20").all();
+      if (activeEmps.length > 0) {
+        const insertOt = db.prepare(`
+          INSERT INTO overtime_records (
+            month, day, date_str, employee_id, team_id, shift_code,
+            scheduled_start_time, scheduled_end_time, actual_end_time,
+            total_extra_hours, buffer_hours, approved_ot_hours,
+            reason, aircraft_reg, work_order_no, location_bay,
+            team_manager_status, team_manager_name, remarks
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+
+        // Sample entries covering user's exact case (8 PM to 11 PM -> 3 hrs extra -> 2 hrs buffer -> 1 hr OT)
+        const samples = [
+          { day: 10, empIdx: 0, actEnd: '23:00', extra: 3.0, buffer: 2.0, ot: 1.0, reason: 'A380 Cabin Deep Cleaning & Seat Belt Check', reg: 'A6-EVA', bay: 'Stand B12', mgr: 'A. Al-Mansoori' },
+          { day: 10, empIdx: 1, actEnd: '23:30', extra: 3.5, buffer: 2.0, ot: 1.5, reason: 'A380 Cabin Deep Cleaning & Seat Belt Check', reg: 'A6-EVA', bay: 'Stand B12', mgr: 'A. Al-Mansoori' },
+          { day: 11, empIdx: 2, actEnd: '23:00', extra: 3.0, buffer: 2.0, ot: 1.0, reason: 'B777 Galley Chiller Urgent Replacement', reg: 'A6-EOQ', bay: 'Bay C24', mgr: 'R. K. Sharma' },
+          { day: 11, empIdx: 3, actEnd: '22:00', extra: 2.0, buffer: 2.0, ot: 0.0, reason: 'Lavatory Smoke Detector Defect Rectification', reg: 'A6-EPF', bay: 'Bay A05', mgr: 'R. K. Sharma' },
+          { day: 12, empIdx: 4, actEnd: '00:00', extra: 4.0, buffer: 2.0, ot: 2.0, reason: 'A/C Delay - A6-EEX Urgent Departure Prep', reg: 'A6-EEX', bay: 'Stand F08', mgr: 'M. Tariq' },
+          { day: 12, empIdx: 5, actEnd: '23:00', extra: 3.0, buffer: 2.0, ot: 1.0, reason: 'A/C Delay - A6-EEX Urgent Departure Prep', reg: 'A6-EEX', bay: 'Stand F08', mgr: 'M. Tariq' },
+          { day: 13, empIdx: 6, actEnd: '23:00', extra: 3.0, buffer: 2.0, ot: 1.0, reason: 'Flight Delay EK-203 Cabin Rectification', reg: 'A6-BLA', bay: 'Stand B21', mgr: 'F. Rahman' },
+          { day: 14, empIdx: 7, actEnd: '01:00', extra: 5.0, buffer: 2.0, ot: 3.0, reason: 'Aft Lounge Carpet & Armrest Rapid Fix', reg: 'A6-EVN', bay: 'Hangar 02', mgr: 'K. Munir' },
+          { day: 15, empIdx: 8, actEnd: '22:30', extra: 2.5, buffer: 2.0, ot: 0.5, reason: 'Cockpit Windshield Trim Panel Securing', reg: 'A6-ENE', bay: 'Stand C11', mgr: 'A. Al-Mansoori' },
+          { day: 16, empIdx: 9, actEnd: '23:00', extra: 3.0, buffer: 2.0, ot: 1.0, reason: 'Emergency Seat Track Inspection Work Order', reg: 'A6-ECH', bay: 'Bay E04', mgr: 'M. Tariq' }
+        ];
+
+        runTx(() => {
+          samples.forEach((s, idx) => {
+            const emp = activeEmps[s.empIdx % activeEmps.length];
+            const dayStr = String(s.day).padStart(2, '0');
+            const dateStr = `2026-11-${dayStr}`;
+            insertOt.run(
+              '2026-11',
+              s.day,
+              dateStr,
+              emp.id,
+              emp.team_id,
+              'D',
+              '08:00',
+              '20:00',
+              s.actEnd,
+              s.extra,
+              s.buffer,
+              s.ot,
+              s.reason,
+              s.reg,
+              `WO-DXB-${202600 + idx}`,
+              s.bay,
+              'APPROVED',
+              s.mgr,
+              'Operational necessity approved under DXB airside ops.'
+            );
+          });
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error seeding overtime records:', err.message);
   }
 }
 

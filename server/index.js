@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { db, hashPassword, initSchema, listBackups, recordAudit, runDailyBackup, runTx, seedIfEmpty, verifyPassword } from './db.js';
-import { generatePayrollExcelBuffer, generatePayrollPdfBuffer, generateRosterExcelBuffer, generateRosterPdfBuffer } from './export_roster.js';
+import { generateOvertimeExcelBuffer, generatePayrollExcelBuffer, generatePayrollPdfBuffer, generateRosterExcelBuffer, generateRosterPdfBuffer } from './export_roster.js';
 import { parsePdfBuffer, parseSpreadsheetBuffer } from './roster_import.js';
 import {
   PRESET_PATTERNS,
@@ -1599,6 +1599,268 @@ app.post('/api/employees', (req, res) => {
   });
 
   res.json({ ok: true, id: empId });
+});
+
+// ==========================================
+// OVERTIME & APPROVED UUDS OT FORM ENDPOINTS
+// ==========================================
+function calculateOtHours(scheduledEnd, actualEnd, buffer = 2.0) {
+  if (!scheduledEnd || !actualEnd) return { extraHours: 0, bufferHours: buffer, approvedOtHours: 0 };
+  const [sH, sM] = String(scheduledEnd).split(':').map(Number);
+  const [aH, aM] = String(actualEnd).split(':').map(Number);
+  let sTotalMin = (sH || 0) * 60 + (sM || 0);
+  let aTotalMin = (aH || 0) * 60 + (aM || 0);
+  if (aTotalMin < sTotalMin) {
+    // Crosses midnight (e.g. 20:00 to 01:00 -> 01:00 is next day)
+    aTotalMin += 24 * 60;
+  }
+  const diffMin = Math.max(0, aTotalMin - sTotalMin);
+  const extraHours = Math.round((diffMin / 60) * 10) / 10;
+  const approvedOtHours = Math.max(0, Math.round((extraHours - buffer) * 10) / 10);
+  return { extraHours, bufferHours: buffer, approvedOtHours };
+}
+
+app.get('/api/overtime', (req, res) => {
+  const { month = '2026-11', teamId = 'all', search = '' } = req.query;
+  let query = `
+    SELECT ot.*, e.name AS emp_name, e.uuds_no, e.contingent_no, e.skill, e.mobile_no,
+           t.name AS team_name, t.full_name AS team_full_name
+    FROM overtime_records ot
+    JOIN employees e ON e.id = ot.employee_id
+    JOIN teams t ON t.id = ot.team_id
+    WHERE ot.month = ?
+  `;
+  const params = [month];
+  if (teamId && teamId !== 'all') {
+    query += ' AND ot.team_id = ?';
+    params.push(teamId);
+  }
+  if (search && search.trim()) {
+    const q = `%${search.trim().toLowerCase()}%`;
+    query += ` AND (
+      LOWER(e.name) LIKE ? OR
+      LOWER(e.uuds_no) LIKE ? OR
+      LOWER(e.contingent_no) LIKE ? OR
+      LOWER(ot.aircraft_reg) LIKE ? OR
+      LOWER(ot.reason) LIKE ?
+    )`;
+    params.push(q, q, q, q, q);
+  }
+  query += ' ORDER BY ot.day ASC, ot.team_id ASC, e.name ASC';
+
+  const rows = db.prepare(query).all(...params);
+
+  // Summary statistics
+  const distinctEmps = new Set(rows.map((r) => r.employee_id));
+  const totalExtraHours = rows.reduce((acc, r) => acc + (Number(r.total_extra_hours) || 0), 0);
+  const totalDeductedHours = rows.reduce((acc, r) => acc + (Number(r.buffer_hours) || 0), 0);
+  const totalApprovedOtHours = rows.reduce((acc, r) => acc + (Number(r.approved_ot_hours) || 0), 0);
+  const approvedCount = rows.filter((r) => r.team_manager_status === 'APPROVED').length;
+  const pendingCount = rows.filter((r) => r.team_manager_status !== 'APPROVED').length;
+
+  res.json({
+    month,
+    teamId,
+    records: rows,
+    summary: {
+      totalRecords: rows.length,
+      totalStaffCount: distinctEmps.size,
+      totalExtraHours: Math.round(totalExtraHours * 10) / 10,
+      totalDeductedHours: Math.round(totalDeductedHours * 10) / 10,
+      totalApprovedOtHours: Math.round(totalApprovedOtHours * 10) / 10,
+      approvedCount,
+      pendingCount,
+    },
+  });
+});
+
+app.post('/api/overtime', (req, res) => {
+  const {
+    month = '2026-11',
+    day,
+    employeeId,
+    teamId,
+    shiftCode = 'D',
+    scheduledStartTime = '08:00',
+    scheduledEndTime = '20:00',
+    actualEndTime,
+    bufferHours = 2.0,
+    reason = '',
+    aircraftReg = '',
+    workOrderNo = '',
+    locationBay = 'DXB Ramp',
+    teamManagerStatus = 'APPROVED',
+    teamManagerName = 'Shift Supervisor',
+    remarks = '',
+    records: batchRecords,
+  } = req.body;
+
+  const actor = req.user?.displayName || req.body.actor || 'Workshop Manager';
+
+  // Support single or batch insert
+  const items = Array.isArray(batchRecords) && batchRecords.length > 0
+    ? batchRecords
+    : [{
+        month,
+        day: Number(day),
+        employeeId: Number(employeeId),
+        teamId,
+        shiftCode,
+        scheduledStartTime,
+        scheduledEndTime,
+        actualEndTime,
+        bufferHours: Number(bufferHours ?? 2.0),
+        reason,
+        aircraftReg,
+        workOrderNo,
+        locationBay,
+        teamManagerStatus,
+        teamManagerName,
+        remarks,
+      }];
+
+  const insertStmt = db.prepare(`
+    INSERT INTO overtime_records (
+      month, day, date_str, employee_id, team_id, shift_code,
+      scheduled_start_time, scheduled_end_time, actual_end_time,
+      total_extra_hours, buffer_hours, approved_ot_hours,
+      reason, aircraft_reg, work_order_no, location_bay,
+      team_manager_status, team_manager_name, remarks
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const createdIds = [];
+
+  runTx(() => {
+    for (const item of items) {
+      if (!item.employeeId || !item.day || !item.actualEndTime) continue;
+      const emp = db.prepare('SELECT id, team_id, name FROM employees WHERE id = ?').get(item.employeeId);
+      if (!emp) continue;
+
+      const tId = item.teamId || emp.team_id;
+      const dayNum = Number(item.day);
+      const dayPad = String(dayNum).padStart(2, '0');
+      const dateStr = item.dateStr || `${item.month || month}-${dayPad}`;
+      const buf = Number(item.bufferHours !== undefined ? item.bufferHours : 2.0);
+
+      const calc = calculateOtHours(item.scheduledEndTime || '20:00', item.actualEndTime, buf);
+
+      const result = insertStmt.run(
+        item.month || month,
+        dayNum,
+        dateStr,
+        emp.id,
+        tId,
+        item.shiftCode || 'D',
+        item.scheduledStartTime || '08:00',
+        item.scheduledEndTime || '20:00',
+        item.actualEndTime,
+        calc.extraHours,
+        calc.bufferHours,
+        calc.approvedOtHours,
+        item.reason || '',
+        item.aircraftReg || '',
+        item.workOrderNo || '',
+        item.locationBay || 'DXB Ramp',
+        item.teamManagerStatus || 'APPROVED',
+        item.teamManagerName || 'Shift Supervisor',
+        item.remarks || ''
+      );
+      createdIds.push(Number(result.lastInsertRowid));
+    }
+
+    recordAudit({
+      month,
+      actionType: 'OVERTIME_LOGGED',
+      reason: `Logged ${createdIds.length} overtime entries with 2h deduction rule`,
+      actor,
+    });
+  });
+
+  res.json({ ok: true, createdCount: createdIds.length, ids: createdIds });
+});
+
+app.patch('/api/overtime/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare('SELECT * FROM overtime_records WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Overtime record not found' });
+
+  const scheduledEndTime = req.body.scheduledEndTime !== undefined ? req.body.scheduledEndTime : existing.scheduled_end_time;
+  const actualEndTime = req.body.actualEndTime !== undefined ? req.body.actualEndTime : existing.actual_end_time;
+  const bufferHours = req.body.bufferHours !== undefined ? Number(req.body.bufferHours) : existing.buffer_hours;
+
+  const calc = calculateOtHours(scheduledEndTime, actualEndTime, bufferHours);
+
+  const teamManagerStatus = req.body.teamManagerStatus !== undefined ? req.body.teamManagerStatus : existing.team_manager_status;
+  const teamManagerName = req.body.teamManagerName !== undefined ? req.body.teamManagerName : existing.team_manager_name;
+  const reason = req.body.reason !== undefined ? req.body.reason : existing.reason;
+  const aircraftReg = req.body.aircraftReg !== undefined ? req.body.aircraftReg : existing.aircraft_reg;
+  const workOrderNo = req.body.workOrderNo !== undefined ? req.body.workOrderNo : existing.work_order_no;
+  const locationBay = req.body.locationBay !== undefined ? req.body.locationBay : existing.location_bay;
+  const remarks = req.body.remarks !== undefined ? req.body.remarks : existing.remarks;
+
+  db.prepare(`
+    UPDATE overtime_records
+    SET scheduled_end_time = ?,
+        actual_end_time = ?,
+        total_extra_hours = ?,
+        buffer_hours = ?,
+        approved_ot_hours = ?,
+        team_manager_status = ?,
+        team_manager_name = ?,
+        reason = ?,
+        aircraft_reg = ?,
+        work_order_no = ?,
+        location_bay = ?,
+        remarks = ?,
+        updated_at = datetime('now')
+    WHERE id = ?
+  `).run(
+    scheduledEndTime,
+    actualEndTime,
+    calc.extraHours,
+    calc.bufferHours,
+    calc.approvedOtHours,
+    teamManagerStatus,
+    teamManagerName,
+    reason,
+    aircraftReg,
+    workOrderNo,
+    locationBay,
+    remarks,
+    id
+  );
+
+  const updated = db.prepare(`
+    SELECT ot.*, e.name AS emp_name, e.uuds_no, e.contingent_no, e.skill, t.name AS team_name
+    FROM overtime_records ot
+    JOIN employees e ON e.id = ot.employee_id
+    JOIN teams t ON t.id = ot.team_id
+    WHERE ot.id = ?
+  `).get(id);
+
+  res.json({ ok: true, record: updated });
+});
+
+app.delete('/api/overtime/:id', (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare('SELECT * FROM overtime_records WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Overtime record not found' });
+
+  db.prepare('DELETE FROM overtime_records WHERE id = ?').run(id);
+  res.json({ ok: true, deletedId: id });
+});
+
+app.get('/api/export/overtime-excel', async (req, res) => {
+  try {
+    const { month = '2026-11', teamId = 'all' } = req.query;
+    const buf = await generateOvertimeExcelBuffer(db, month, teamId);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="UUDS_DXB_Approved_OT_Form_${month}_${teamId}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Overtime Excel export failed' });
+  }
 });
 
 app.patch('/api/employees/batch-dates', (req, res) => {
