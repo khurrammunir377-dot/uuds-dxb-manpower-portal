@@ -89,6 +89,29 @@ export default function OvertimeHub({
     return date.toLocaleString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
   }, [activeMonth]);
 
+  // Standard aviation date format: 11-Nov-2026
+  const formatDisplayDate = (dateVal, day, monthStr) => {
+    if (!dateVal && (!monthStr || !day)) return '-';
+    let d;
+    if (dateVal && typeof dateVal === 'string' && dateVal.includes('-')) {
+      const parts = dateVal.split('-');
+      if (parts.length === 3) {
+        d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      } else {
+        d = new Date(dateVal);
+      }
+    } else if (monthStr && day) {
+      const [y, m] = monthStr.split('-').map(Number);
+      d = new Date(y, m - 1, Number(day));
+    }
+    if (!d || isNaN(d.getTime())) return dateVal || '-';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mmm = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    return `${dd}-${mmm}-${yyyy}`;
+  };
+
   // Live OT calculation helper
   const calculateLiveOT = (schedEnd, actEnd, buf = 2.0) => {
     if (!schedEnd || !actEnd) return { extra: 0, buffer: buf, approved: 0 };
@@ -372,9 +395,8 @@ export default function OvertimeHub({
             <thead className="bg-slate-900 text-white border-b border-slate-300 font-bold uppercase tracking-wider print:bg-white print:text-black print:border-b-2 print:border-black">
               <tr>
                 <th className="py-2.5 px-2 text-center w-8">#</th>
-                <th className="py-2.5 px-2 text-center w-20">Date</th>
+                <th className="py-2.5 px-2 text-center w-24">Date</th>
                 <th className="py-2.5 px-2 text-center w-20">UUDS ID</th>
-                <th className="py-2.5 px-2 text-center w-20">Contingent No</th>
                 <th className="py-2.5 px-2 text-center min-w-[140px]">Staff Name</th>
                 <th className="py-2.5 px-2 text-center min-w-[90px]">Trade / Skill</th>
                 <th className="py-2.5 px-2 text-center min-w-[85px]">Team</th>
@@ -394,13 +416,13 @@ export default function OvertimeHub({
             <tbody className="divide-y divide-slate-200 font-sans print:divide-gray-400">
               {loading && records.length === 0 ? (
                 <tr>
-                  <td colSpan="16" className="py-10 text-center text-slate-400">
+                  <td colSpan="15" className="py-10 text-center text-slate-400">
                     Loading overtime records…
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan="16" className="py-10 text-center text-slate-400">
+                  <td colSpan="15" className="py-10 text-center text-slate-400">
                     No overtime records found. Click "+ Log Overtime" to add entries.
                   </td>
                 </tr>
@@ -415,14 +437,11 @@ export default function OvertimeHub({
                     <td className="py-2 px-2 text-center font-mono font-bold text-slate-400 print:text-black">
                       {idx + 1}
                     </td>
-                    <td className="py-2 px-2 text-center font-medium whitespace-nowrap text-slate-700 print:text-black">
-                      {rec.date_str || `${activeMonth}-${String(rec.day).padStart(2, '0')}`}
+                    <td className="py-2 px-2 text-center font-bold whitespace-nowrap text-slate-800 print:text-black font-mono text-xs">
+                      {formatDisplayDate(rec.date_str, rec.day, activeMonth)}
                     </td>
                     <td className="py-2 px-2 text-center font-mono font-black text-xs text-sky-700 print:text-black">
                       {rec.uuds_no || '-'}
-                    </td>
-                    <td className="py-2 px-2 text-center font-mono text-slate-600 print:text-black">
-                      {rec.contingent_no || '-'}
                     </td>
                     <td className="py-2 px-2 text-left font-bold text-slate-900 print:text-black whitespace-nowrap">
                       {rec.emp_name}
@@ -504,7 +523,7 @@ export default function OvertimeHub({
             {/* Totals Summary Row */}
             <tfoot className="bg-slate-100 text-slate-900 border-t-2 border-slate-300 font-bold print:bg-white print:border-black">
               <tr>
-                <td colSpan="10" className="py-2.5 px-3 text-right uppercase tracking-wider text-xs">
+                <td colSpan="9" className="py-2.5 px-3 text-right uppercase tracking-wider text-xs">
                   Monthly Total Overtime Summary:
                 </td>
                 <td className="py-2.5 px-2 text-center font-mono text-slate-900 text-xs">
@@ -526,28 +545,11 @@ export default function OvertimeHub({
 
         {/* 3. Bottom Signature & Approval Section (Screen & Print Layout) */}
         <div className="border-t border-slate-200 bg-slate-50/60 p-4 sm:p-5 print:border-t-2 print:border-black print:bg-white print:p-3 print:break-inside-avoid">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Box 1: Team Manager / Shift Supervisor */}
-            <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs print:border-black print:shadow-none">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 print:text-black">
-                1. Team Manager / Supervisor
-              </div>
-              <div className="mt-2 text-xs font-bold text-slate-900 print:text-black">
-                Name: ______________________
-              </div>
-              <div className="mt-4 border-b border-dashed border-slate-400 print:border-black pb-1">
-                <span className="text-[10px] text-slate-400 print:text-black">Signature:</span>
-              </div>
-              <div className="mt-2 text-[10px] text-slate-500 print:text-black flex justify-between">
-                <span>Date: ____ / ____ / 2026</span>
-                <span className="font-semibold text-emerald-700 print:text-black">[ CERTIFIED ]</span>
-              </div>
-            </div>
-
-            {/* Box 2: Workshop Manager Approval (User name removed, blank line) */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 max-w-4xl mx-auto">
+            {/* Box 1: Workshop Manager Approval (User name removed, blank line) */}
             <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs print:border-black print:shadow-none">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-700 print:text-black flex items-center justify-between">
-                <span>2. Workshop Manager Approval</span>
+                <span>Workshop Manager Approval</span>
                 <PenTool className="h-3.5 w-3.5 text-slate-400 no-print" />
               </div>
               <div className="mt-2 text-xs font-bold text-slate-900 print:text-black">
@@ -557,15 +559,15 @@ export default function OvertimeHub({
                 <span className="text-[10px] text-slate-400 print:text-black">Signature:</span>
               </div>
               <div className="mt-2 text-[10px] text-slate-500 print:text-black flex justify-between">
-                <span>Date: ____ / ____ / 2026</span>
+                <span>Date: ____-___-2026</span>
                 <span className="font-semibold text-amber-700 print:text-black">[ APPROVED ]</span>
               </div>
             </div>
 
-            {/* Box 3: Project Manager Final Authorization (JOSEPH SHERONNE) */}
+            {/* Box 2: Project Manager Final Authorization (JOSEPH SHERONNE) */}
             <div className="rounded-xl border border-slate-300 bg-white p-3.5 shadow-2xs print:border-black print:shadow-none">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-700 print:text-black flex items-center justify-between">
-                <span>3. Project Manager Approval</span>
+                <span>Project Manager Approval</span>
                 <Building2 className="h-3.5 w-3.5 text-slate-400 no-print" />
               </div>
               <div className="mt-2 text-xs font-bold text-slate-900 print:text-black">
@@ -575,7 +577,7 @@ export default function OvertimeHub({
                 <span className="text-[10px] text-slate-400 print:text-black">Signature:</span>
               </div>
               <div className="mt-2 text-[10px] text-slate-500 print:text-black flex justify-between">
-                <span>Date: ____ / ____ / 2026</span>
+                <span>Date: ____-___-2026</span>
                 <span className="font-semibold text-sky-800 print:text-black">[ FINAL SIGN-OFF ]</span>
               </div>
             </div>

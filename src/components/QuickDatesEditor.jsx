@@ -211,14 +211,15 @@ export default function QuickDatesEditor({
       if (statusFilter === 'UNSAVED' && !isRowModified(emp.id)) return false;
 
       const current = editedDates[emp.id] || {};
+      const passDays = getDaysRemaining(current.passportExpiry);
       const airDays = getDaysRemaining(current.airsidePassExpiry);
       const cardDays = getDaysRemaining(current.contingentCardExpiry);
       const visaDays = getDaysRemaining(current.visaExpiry);
 
-      const hasExpired = (airDays !== null && airDays <= 0) || (cardDays !== null && cardDays <= 0) || (visaDays !== null && visaDays <= 0);
-      const hasCritical = (airDays !== null && airDays > 0 && airDays <= 30) || (cardDays !== null && cardDays > 0 && cardDays <= 30) || (visaDays !== null && visaDays > 0 && visaDays <= 30);
-      const hasUpcoming = (airDays !== null && airDays > 30 && airDays <= 90) || (cardDays !== null && cardDays > 30 && cardDays <= 90) || (visaDays !== null && visaDays > 30 && visaDays <= 90);
-      const hasMissing = !current.airsidePassExpiry || !current.contingentCardExpiry || !current.visaExpiry;
+      const hasExpired = (passDays !== null && passDays <= 0) || (airDays !== null && airDays <= 0) || (cardDays !== null && cardDays <= 0) || (visaDays !== null && visaDays <= 0);
+      const hasCritical = (passDays !== null && passDays > 0 && passDays <= 30) || (airDays !== null && airDays > 0 && airDays <= 30) || (cardDays !== null && cardDays > 0 && cardDays <= 30) || (visaDays !== null && visaDays > 0 && visaDays <= 30);
+      const hasUpcoming = (passDays !== null && passDays > 30 && passDays <= 90) || (airDays !== null && airDays > 30 && airDays <= 90) || (cardDays !== null && cardDays > 30 && cardDays <= 90) || (visaDays !== null && visaDays > 30 && visaDays <= 90);
+      const hasMissing = !current.passportExpiry || !current.airsidePassExpiry || !current.contingentCardExpiry || !current.visaExpiry;
 
       if (statusFilter === 'EXPIRED' && !hasExpired) return false;
       if (statusFilter === 'CRITICAL' && !hasCritical) return false;
@@ -273,38 +274,38 @@ export default function QuickDatesEditor({
   // Render Days remaining badge
   const renderDaysBadge = (days) => {
     if (days === null) {
-      return <span className="text-[10px] text-slate-400 font-medium">—</span>;
+      return <span className="text-[9px] text-slate-400 font-medium">—</span>;
     }
     if (days <= 0) {
       return (
-        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-black bg-rose-100 text-rose-800 border border-rose-300">
-          EXPIRED ({Math.abs(days)}d ago)
+        <span className="inline-flex items-center rounded px-1 py-0.2 text-[8.5px] font-black bg-rose-100 text-rose-800 border border-rose-300 leading-tight">
+          EXPIRED ({Math.abs(days)}d)
         </span>
       );
     }
     if (days <= 30) {
       return (
-        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-black bg-rose-50 text-rose-700 border border-rose-200">
+        <span className="inline-flex items-center rounded px-1 py-0.2 text-[8.5px] font-black bg-rose-50 text-rose-700 border border-rose-200 leading-tight">
           Crit: {days}d left
         </span>
       );
     }
     if (days <= 60) {
       return (
-        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-          Urg: {days}d left
+        <span className="inline-flex items-center rounded px-1 py-0.2 text-[8.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 leading-tight">
+          {days}d left
         </span>
       );
     }
     if (days <= 90) {
       return (
-        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-semibold bg-yellow-50 text-yellow-800 border border-yellow-200">
+        <span className="inline-flex items-center rounded px-1 py-0.2 text-[8.5px] font-semibold bg-yellow-50 text-yellow-800 border border-yellow-200 leading-tight">
           {days}d left
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.2 text-[9.5px] font-medium text-emerald-700">
+      <span className="inline-flex items-center rounded px-1 py-0.2 text-[8.5px] font-medium text-emerald-700 leading-tight">
         OK ({days}d)
       </span>
     );
@@ -498,41 +499,41 @@ export default function QuickDatesEditor({
 
       {/* Spreadsheet Table: Direct In-Row Date Inputs */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div className="overflow-x-auto max-h-[72vh]">
-          <table className="w-full border-collapse text-left text-xs">
+        <div className="overflow-x-hidden max-h-[74vh] overflow-y-auto">
+          <table className="w-full table-fixed border-collapse text-left text-xs">
             <thead className="sticky top-0 z-20 border-b border-slate-200 bg-slate-900 text-white shadow-sm">
               <tr>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 w-12 text-center">
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-slate-300 w-[3%] text-center">
                   #
                 </th>
-                <th className="sticky left-0 z-30 bg-slate-900 py-3 px-3.5 text-xs font-black uppercase tracking-wider text-white min-w-[240px]">
-                  Staff Name &amp; Employee ID
+                <th className="py-2 px-2 text-[11px] font-black uppercase tracking-wider text-white w-[17%]">
+                  Staff Name &amp; ID
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 min-w-[130px]">
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-slate-300 w-[7%] text-center">
                   Team
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-indigo-300 min-w-[150px]">
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-indigo-300 w-[8%] text-center">
                   Passport No
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-indigo-300 min-w-[180px]">
-                  Passport Expiry
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-indigo-300 w-[11%] text-center">
+                  Passport Exp
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-sky-300 min-w-[180px]">
-                  Airside Pass Expiry
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-sky-300 w-[11%] text-center">
+                  Airside Pass
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-teal-300 min-w-[180px]">
-                  Contingent Card Expiry
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-teal-300 w-[11%] text-center">
+                  Contingent Card
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-amber-300 min-w-[180px]">
-                  UAE Visa Expiry
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-amber-300 w-[11%] text-center">
+                  UAE Visa
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 min-w-[150px]">
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-slate-300 w-[8%] text-center">
                   Join Date
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 min-w-[150px]">
-                  DXB Shift Date
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-slate-300 w-[8%] text-center">
+                  DXB Shift
                 </th>
-                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-center text-slate-300 w-28">
+                <th className="py-2 px-1 text-[11px] font-black uppercase tracking-wider text-center text-slate-300 w-[5%]">
                   Action
                 </th>
               </tr>
@@ -571,29 +572,27 @@ export default function QuickDatesEditor({
                       }`}
                     >
                       {/* Row Index */}
-                      <td className="py-2 px-3 text-center text-[11px] font-mono font-bold text-slate-400">
+                      <td className="py-1.5 px-1 text-center text-[10.5px] font-mono font-bold text-slate-400">
                         {idx + 1}
                       </td>
 
-                      {/* Sticky Staff Name & UUDS No */}
-                      <td className={`sticky left-0 z-10 py-2.5 px-3.5 transition-colors ${
-                        modified ? 'bg-amber-50/95' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'
-                      } border-r border-slate-200 shadow-sm min-w-[240px]`}>
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-black text-slate-900 text-xs sm:text-sm tracking-tight leading-tight">
+                      {/* Staff Name & UUDS No */}
+                      <td className="py-1.5 px-2">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="font-bold text-slate-900 text-xs tracking-tight leading-tight truncate" title={emp.name}>
                             {emp.name}
                           </span>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="inline-flex items-center rounded-lg border border-sky-500/40 bg-slate-950 px-2.5 py-0.5 font-mono text-xs sm:text-sm font-black tracking-wider text-sky-300 shadow-xs">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center rounded border border-sky-500/40 bg-slate-950 px-1.5 py-0.2 font-mono text-[10.5px] font-black tracking-wider text-sky-300">
                               {emp.uuds_no || 'NO-ID'}
                             </span>
                             {emp.contingent_no && (
-                              <span className="inline-flex items-center rounded-md border border-slate-300 bg-slate-100 px-2 py-0.5 font-mono text-xs font-bold text-slate-700">
+                              <span className="inline-flex items-center rounded border border-slate-300 bg-slate-100 px-1 py-0.2 font-mono text-[9px] font-bold text-slate-700">
                                 C: {emp.contingent_no}
                               </span>
                             )}
                             {modified && (
-                              <span className="rounded bg-amber-500 px-1.5 py-0.5 text-[9.5px] font-black text-white uppercase tracking-wider shadow-xs">
+                              <span className="rounded bg-amber-500 px-1 py-0.2 text-[8.5px] font-black text-white uppercase tracking-wider">
                                 Edited
                               </span>
                             )}
@@ -602,20 +601,20 @@ export default function QuickDatesEditor({
                       </td>
 
                       {/* Team Name */}
-                      <td className="py-2 px-3">
-                        <span className="inline-block rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 truncate max-w-[130px]">
+                      <td className="py-1.5 px-1 text-center">
+                        <span className="inline-block rounded bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-700 truncate max-w-full">
                           {teamMap[emp.team_id] || emp.team_name || emp.team_id}
                         </span>
                       </td>
 
                       {/* Passport Number */}
-                      <td className="py-2 px-3">
+                      <td className="py-1.5 px-1">
                         <input
                           type="text"
                           value={dates.passportNo}
                           onChange={(e) => handleDateChange(emp.id, 'passportNo', e.target.value.toUpperCase())}
-                          placeholder="e.g. N1234567"
-                          className={`w-full rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 uppercase transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                          placeholder="Pass No"
+                          className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 uppercase transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
                             dates.passportNo !== (emp.passport_no || '')
                               ? 'border-amber-400 bg-amber-50/80'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -624,80 +623,80 @@ export default function QuickDatesEditor({
                       </td>
 
                       {/* Passport Expiry */}
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-1">
+                      <td className="py-1.5 px-1">
+                        <div className="flex flex-col gap-0.5">
                           <input
                             type="date"
                             value={dates.passportExpiry}
                             onChange={(e) => handleDateChange(emp.id, 'passportExpiry', e.target.value)}
-                            className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
                               dates.passportExpiry !== (emp.passport_expiry || '')
                                 ? 'border-amber-400 bg-amber-50/80'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
                             }`}
                           />
-                          <div>{renderDaysBadge(passportDays)}</div>
+                          <div className="leading-tight">{renderDaysBadge(passportDays)}</div>
                         </div>
                       </td>
 
                       {/* Airside Pass Expiry */}
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-1">
+                      <td className="py-1.5 px-1">
+                        <div className="flex flex-col gap-0.5">
                           <input
                             type="date"
                             value={dates.airsidePassExpiry}
                             onChange={(e) => handleDateChange(emp.id, 'airsidePassExpiry', e.target.value)}
-                            className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+                            className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
                               dates.airsidePassExpiry !== (emp.airside_pass_expiry || '')
                                 ? 'border-amber-400 bg-amber-50/80'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
                             }`}
                           />
-                          <div>{renderDaysBadge(airDays)}</div>
+                          <div className="leading-tight">{renderDaysBadge(airDays)}</div>
                         </div>
                       </td>
 
                       {/* Contingent Card Expiry */}
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-1">
+                      <td className="py-1.5 px-1">
+                        <div className="flex flex-col gap-0.5">
                           <input
                             type="date"
                             value={dates.contingentCardExpiry}
                             onChange={(e) => handleDateChange(emp.id, 'contingentCardExpiry', e.target.value)}
-                            className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-teal-500 ${
+                            className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-teal-500 ${
                               dates.contingentCardExpiry !== (emp.contingent_card_expiry || emp.medical_expiry || '')
                                 ? 'border-amber-400 bg-amber-50/80'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
                             }`}
                           />
-                          <div>{renderDaysBadge(cardDays)}</div>
+                          <div className="leading-tight">{renderDaysBadge(cardDays)}</div>
                         </div>
                       </td>
 
                       {/* UAE Visa Expiry */}
-                      <td className="py-2 px-3">
-                        <div className="flex flex-col gap-1">
+                      <td className="py-1.5 px-1">
+                        <div className="flex flex-col gap-0.5">
                           <input
                             type="date"
                             value={dates.visaExpiry}
                             onChange={(e) => handleDateChange(emp.id, 'visaExpiry', e.target.value)}
-                            className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                            className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-amber-500 ${
                               dates.visaExpiry !== (emp.visa_expiry || '')
                                 ? 'border-amber-400 bg-amber-50/80'
                                 : 'border-slate-200 bg-white hover:border-slate-300'
                             }`}
                           />
-                          <div>{renderDaysBadge(visaDays)}</div>
+                          <div className="leading-tight">{renderDaysBadge(visaDays)}</div>
                         </div>
                       </td>
 
                       {/* Join Date */}
-                      <td className="py-2 px-3">
+                      <td className="py-1.5 px-1">
                         <input
                           type="date"
                           value={dates.joinDate}
                           onChange={(e) => handleDateChange(emp.id, 'joinDate', e.target.value)}
-                          className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+                          className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
                             dates.joinDate !== (emp.join_date || '')
                               ? 'border-amber-400 bg-amber-50/80'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -706,12 +705,12 @@ export default function QuickDatesEditor({
                       </td>
 
                       {/* DXB Shift Date */}
-                      <td className="py-2 px-3">
+                      <td className="py-1.5 px-1">
                         <input
                           type="date"
                           value={dates.dxbShiftDate}
                           onChange={(e) => handleDateChange(emp.id, 'dxbShiftDate', e.target.value)}
-                          className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
+                          className={`w-full rounded border px-1 py-0.5 text-[11px] font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-sky-500 ${
                             dates.dxbShiftDate !== (emp.dxb_shift_date || '')
                               ? 'border-amber-400 bg-amber-50/80'
                               : 'border-slate-200 bg-white hover:border-slate-300'
@@ -720,7 +719,7 @@ export default function QuickDatesEditor({
                       </td>
 
                       {/* Row Action (Save row / Discard row) */}
-                      <td className="py-2 px-3 text-center">
+                      <td className="py-1.5 px-1 text-center">
                         {modified ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <button

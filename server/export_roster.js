@@ -507,8 +507,26 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
     right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
   };
 
+  function formatAviationDate(dateStr, day, month) {
+    let d;
+    if (dateStr && typeof dateStr === 'string' && dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      else d = new Date(dateStr);
+    } else if (month && day) {
+      const [y, m] = month.split('-').map(Number);
+      d = new Date(y, m - 1, Number(day));
+    }
+    if (!d || isNaN(d.getTime())) return dateStr || '-';
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mmm = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    return `${dd}-${mmm}-${yyyy}`;
+  }
+
   // Header Title Row 1 (Clean white, no background fill)
-  ws.mergeCells(1, 1, 1, 15);
+  ws.mergeCells(1, 1, 1, 14);
   const title1 = ws.getCell(1, 1);
   title1.value = 'UUDS Aero DWC (DXB Workshop)';
   title1.font = { bold: true, size: 14, color: { argb: 'FF0F172A' } };
@@ -516,7 +534,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   ws.getRow(1).height = 26;
 
   // Header Title Row 2 (Clean white, no background fill)
-  ws.mergeCells(2, 1, 2, 15);
+  ws.mergeCells(2, 1, 2, 14);
   const title2 = ws.getCell(2, 1);
   title2.value = `MONTHLY OVERTIME RECORD FORM — ${monthLabel.toUpperCase()}`;
   title2.font = { bold: true, size: 11, color: { argb: 'FF1E293B' } };
@@ -525,7 +543,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
 
   // Table Column Headers (Row 4, all centered)
   const headers = [
-    'SN', 'Date', 'UUDS ID', 'Contingent No', 'Staff Name', 'Trade / Skill',
+    'SN', 'Date', 'UUDS ID', 'Staff Name', 'Trade / Skill',
     'Team', 'Shift', 'Duty End', 'Finish Time', 'Total Extra (Hrs)',
     '1st 2-Hrs Non-OT', 'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Signature'
   ];
@@ -554,9 +572,8 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
 
     const values = [
       idx + 1,
-      r.date_str || `2026-11-${String(r.day).padStart(2, '0')}`,
+      formatAviationDate(r.date_str, r.day, month),
       r.uuds_no || '-',
-      r.contingent_no || '-',
       r.emp_name,
       r.skill,
       r.team_name,
@@ -575,13 +592,13 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
       c.value = v;
       c.font = {
         size: 9,
-        bold: i === 12,
-        color: { argb: i === 12 ? 'FF047857' : (i === 11 ? 'FFB45309' : 'FF0F172A') }
+        bold: i === 11,
+        color: { argb: i === 11 ? 'FF047857' : (i === 10 ? 'FFB45309' : 'FF0F172A') }
       };
-      if (i === 12) {
+      if (i === 11) {
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
       }
-      c.alignment = { vertical: 'middle', horizontal: (i === 4 || i === 13) ? 'left' : 'center' };
+      c.alignment = { vertical: 'middle', horizontal: (i === 3 || i === 12) ? 'left' : 'center' };
       c.border = thinBorder;
     });
     rIdx++;
@@ -591,33 +608,33 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   const totalRow = ws.getRow(rIdx);
   totalRow.height = 24;
   totalRow.getCell(1).value = 'TOTALS';
-  ws.mergeCells(rIdx, 1, rIdx, 10);
+  ws.mergeCells(rIdx, 1, rIdx, 9);
   totalRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF0F172A' } };
   totalRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'right' };
   totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  totalRow.getCell(11).value = totalExtra.toFixed(1);
-  totalRow.getCell(11).font = { bold: true, size: 10 };
+  totalRow.getCell(10).value = totalExtra.toFixed(1);
+  totalRow.getCell(10).font = { bold: true, size: 10 };
+  totalRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(10).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  totalRow.getCell(11).value = `-${totalDeducted.toFixed(1)}`;
+  totalRow.getCell(11).font = { bold: true, size: 10, color: { argb: 'FFB45309' } };
   totalRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'center' };
   totalRow.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  totalRow.getCell(12).value = `-${totalDeducted.toFixed(1)}`;
-  totalRow.getCell(12).font = { bold: true, size: 10, color: { argb: 'FFB45309' } };
+  totalRow.getCell(12).value = totalApproved.toFixed(1);
+  totalRow.getCell(12).font = { bold: true, size: 11, color: { argb: 'FF047857' } };
   totalRow.getCell(12).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+  totalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
 
-  totalRow.getCell(13).value = totalApproved.toFixed(1);
-  totalRow.getCell(13).font = { bold: true, size: 11, color: { argb: 'FF047857' } };
+  ws.mergeCells(rIdx, 13, rIdx, 14);
+  totalRow.getCell(13).value = `${rows.length} Total Duty OT Records`;
+  totalRow.getCell(13).font = { bold: true, size: 9, color: { argb: 'FF475569' } };
   totalRow.getCell(13).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+  totalRow.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  ws.mergeCells(rIdx, 14, rIdx, 15);
-  totalRow.getCell(14).value = `${rows.length} Total Duty OT Records`;
-  totalRow.getCell(14).font = { bold: true, size: 9, color: { argb: 'FF475569' } };
-  totalRow.getCell(14).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(14).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-
-  for (let c = 1; c <= 15; c++) {
+  for (let c = 1; c <= 14; c++) {
     totalRow.getCell(c).border = thinBorder;
   }
 
@@ -628,38 +645,25 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   ws.getCell(rIdx, 2).font = { bold: true, size: 10, underline: true, color: { argb: 'FF0F172A' } };
 
   rIdx += 1;
-  // Box 1: Team Manager / Supervisor
-  ws.mergeCells(rIdx, 2, rIdx + 3, 5);
+  // Box 1: Workshop Manager
+  ws.mergeCells(rIdx, 2, rIdx + 3, 6);
   const box1 = ws.getCell(rIdx, 2);
-  box1.value = 'TEAM MANAGER / SUPERVISOR:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
-  box1.font = { size: 9 };
+  box1.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
+  box1.font = { size: 9, bold: true };
   box1.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   box1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
   box1.border = thinBorder;
 
-  // Box 2: Workshop Manager
-  ws.mergeCells(rIdx, 7, rIdx + 3, 10);
-  const box2 = ws.getCell(rIdx, 7);
-  box2.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
+  // Box 2: Project Manager (JOSEPH SHERONNE)
+  ws.mergeCells(rIdx, 8, rIdx + 3, 13);
+  const box2 = ws.getCell(rIdx, 8);
+  box2.value = 'PROJECT MANAGER APPROVAL:\n\nName: JOSEPH SHERONNE\nSignature: __________________   Date: __/__/2026';
   box2.font = { size: 9, bold: true };
   box2.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   box2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
   box2.border = thinBorder;
 
-  // Box 3: Project Manager (JOSEPH SHERONNE)
-  ws.mergeCells(rIdx, 12, rIdx + 3, 15);
-  const box3 = ws.getCell(rIdx, 12);
-  box3.value = 'PROJECT MANAGER APPROVAL:\n\nName: JOSEPH SHERONNE\nSignature: __________________   Date: __/__/2026';
-  box3.font = { size: 9, bold: true };
-  box3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
-  box3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-  box3.border = thinBorder;
-  box3.font = { size: 9, bold: true };
-  box3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
-  box3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
-  box3.border = thinBorder;
-
-  const colWidths = [5, 13, 13, 14, 24, 18, 16, 7, 10, 11, 13, 14, 14, 28, 24];
+  const colWidths = [5, 14, 13, 24, 18, 16, 7, 10, 11, 13, 14, 14, 28, 24];
   colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
   return Buffer.from(await wb.xlsx.writeBuffer());
