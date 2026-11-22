@@ -228,12 +228,36 @@ export function initSchema() {
   ensureColumn('employees', 'visa_expiry', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('employees', 'medical_expiry', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('employees', 'contingent_card_expiry', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn('employees', 'passport_no', "TEXT NOT NULL DEFAULT ''");
+  ensureColumn('employees', 'passport_expiry', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('employees', 'join_date', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('employees', 'dxb_shift_date', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('employees', 'mobile_no', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('emergency_incidents', 'rollback_payload', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('emergency_incidents', 'expected_return_date', "TEXT NOT NULL DEFAULT ''");
   ensureColumn('users', 'team_id', "TEXT NOT NULL DEFAULT ''");
+
+  // Standardized shift timings:
+  // - Office staff: Daily morning 8 to 5 only (08:00 - 17:00), Sat and Sun off.
+  // - A-Check: 12h duty 8 to 8 (08:00 - 20:00 / 20:00 - 08:00).
+  // - Other all: 12h duty 07:30 to 19:30 (07:30 - 19:30 / 19:30 - 07:30).
+  db.prepare(`
+    UPDATE teams
+    SET shift_timings_json = '{"M":"08:00 - 17:00","OFF":"Weekend / Off (Sat & Sun)","AL":"Annual Leave","SL":"Sick Leave","UPL":"Unpaid Leave"}'
+    WHERE id IN ('office', 'planner')
+  `).run();
+
+  db.prepare(`
+    UPDATE teams
+    SET shift_timings_json = '{"D":"08:00 - 20:00","N":"20:00 - 08:00","M":"08:00 - 17:00","OFF":"Day Off","AL":"On Leave"}'
+    WHERE id = 'a-check'
+  `).run();
+
+  db.prepare(`
+    UPDATE teams
+    SET shift_timings_json = '{"D":"07:30 - 19:30","N":"19:30 - 07:30","M":"08:00 - 17:00","OFF":"Day Off","V":"Vacation","AL":"On Leave"}'
+    WHERE id NOT IN ('office', 'planner', 'a-check')
+  `).run();
 
   // Ensure default admin user with uuds@123 exists
   const adminRow = db.prepare('SELECT user_id FROM users WHERE user_id = ?').get('admin');

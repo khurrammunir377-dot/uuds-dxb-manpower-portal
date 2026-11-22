@@ -44,6 +44,8 @@ export default function QuickDatesEditor({
     const initial = {};
     for (const emp of employees) {
       initial[emp.id] = {
+        passportNo: emp.passport_no || emp.passportNo || '',
+        passportExpiry: emp.passport_expiry || emp.passportExpiry || '',
         airsidePassExpiry: emp.airside_pass_expiry || emp.airsidePassExpiry || '',
         contingentCardExpiry: emp.contingent_card_expiry || emp.medical_expiry || emp.contingentCardExpiry || '',
         visaExpiry: emp.visa_expiry || emp.visaExpiry || '',
@@ -72,6 +74,8 @@ export default function QuickDatesEditor({
     const orig = employees.find((e) => e.id === empId);
     if (!orig) return false;
 
+    const origPassportNo = orig.passport_no || orig.passportNo || '';
+    const origPassportExp = orig.passport_expiry || orig.passportExpiry || '';
     const origAirside = orig.airside_pass_expiry || orig.airsidePassExpiry || '';
     const origContingent = orig.contingent_card_expiry || orig.medical_expiry || orig.contingentCardExpiry || '';
     const origVisa = orig.visa_expiry || orig.visaExpiry || '';
@@ -79,6 +83,8 @@ export default function QuickDatesEditor({
     const origDxb = orig.dxb_shift_date || orig.dxbShiftDate || '';
 
     return (
+      current.passportNo !== origPassportNo ||
+      current.passportExpiry !== origPassportExp ||
       current.airsidePassExpiry !== origAirside ||
       current.contingentCardExpiry !== origContingent ||
       current.visaExpiry !== origVisa ||
@@ -110,6 +116,8 @@ export default function QuickDatesEditor({
     setEditedDates((prev) => ({
       ...prev,
       [empId]: {
+        passportNo: orig.passport_no || orig.passportNo || '',
+        passportExpiry: orig.passport_expiry || orig.passportExpiry || '',
         airsidePassExpiry: orig.airside_pass_expiry || orig.airsidePassExpiry || '',
         contingentCardExpiry: orig.contingent_card_expiry || orig.medical_expiry || orig.contingentCardExpiry || '',
         visaExpiry: orig.visa_expiry || orig.visaExpiry || '',
@@ -125,6 +133,8 @@ export default function QuickDatesEditor({
       const initial = {};
       for (const emp of employees) {
         initial[emp.id] = {
+          passportNo: emp.passport_no || emp.passportNo || '',
+          passportExpiry: emp.passport_expiry || emp.passportExpiry || '',
           airsidePassExpiry: emp.airside_pass_expiry || emp.airsidePassExpiry || '',
           contingentCardExpiry: emp.contingent_card_expiry || emp.medical_expiry || emp.contingentCardExpiry || '',
           visaExpiry: emp.visa_expiry || emp.visaExpiry || '',
@@ -146,6 +156,8 @@ export default function QuickDatesEditor({
       await apiFetch(`/api/employees/${empId}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          passportNo: data.passportNo,
+          passportExpiry: data.passportExpiry,
           airsidePassExpiry: data.airsidePassExpiry,
           contingentCardExpiry: data.contingentCardExpiry,
           medicalExpiry: data.contingentCardExpiry,
@@ -154,10 +166,10 @@ export default function QuickDatesEditor({
           dxbShiftDate: data.dxbShiftDate,
         }),
       });
-      notify('Employee dates saved successfully!');
+      notify('Staff documents saved successfully!');
       if (onDataChanged) onDataChanged();
     } catch (err) {
-      notify(err.message || 'Failed to save dates', 'error');
+      notify(err.message || 'Failed to save staff documents', 'error');
     } finally {
       setSavingRowId(null);
     }
@@ -235,6 +247,7 @@ export default function QuickDatesEditor({
       return;
     }
     const fieldLabel = {
+      passportExpiry: 'Passport Expiry',
       airsidePassExpiry: 'Airside Pass Expiry',
       contingentCardExpiry: 'Contingent Card Expiry',
       visaExpiry: 'UAE Visa Expiry',
@@ -314,14 +327,14 @@ export default function QuickDatesEditor({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-black tracking-tight text-slate-900">
-                  Quick Dates &amp; Compliance Editor
+                  Staff Documents &amp; Compliance Control
                 </h1>
                 <span className="rounded-full bg-teal-100 border border-teal-300 px-2 py-0.5 text-[10px] font-black text-teal-800 uppercase tracking-wide">
                   Direct In-Table Editing
                 </span>
               </div>
               <p className="mt-0.5 text-xs text-slate-500 font-medium">
-                Update Airside Pass, Contingent Card, UAE Visa, Join Date &amp; Shift Date directly in table rows (No Popups).
+                Manage Passport, Airside Pass, Contingent Card, UAE Visa, Join Date &amp; Shift Date directly in table rows (No Popups).
               </p>
             </div>
           </div>
@@ -459,6 +472,7 @@ export default function QuickDatesEditor({
               onChange={(e) => setBulkField(e.target.value)}
               className="rounded-lg border border-sky-300 bg-white px-2.5 py-1 text-xs font-bold text-slate-800 focus:outline-none"
             >
+              <option value="passportExpiry">Passport Expiry</option>
               <option value="airsidePassExpiry">Airside Pass Expiry</option>
               <option value="contingentCardExpiry">Contingent Card Expiry</option>
               <option value="visaExpiry">UAE Visa Expiry</option>
@@ -497,6 +511,12 @@ export default function QuickDatesEditor({
                 <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-slate-300 min-w-[130px]">
                   Team
                 </th>
+                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-indigo-300 min-w-[150px]">
+                  Passport No
+                </th>
+                <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-indigo-300 min-w-[180px]">
+                  Passport Expiry
+                </th>
                 <th className="py-2.5 px-3 text-[11px] font-black uppercase tracking-wider text-sky-300 min-w-[180px]">
                   Airside Pass Expiry
                 </th>
@@ -520,13 +540,15 @@ export default function QuickDatesEditor({
             <tbody className="divide-y divide-slate-100 font-sans">
               {filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-sm font-semibold text-slate-400">
+                  <td colSpan={11} className="py-12 text-center text-sm font-semibold text-slate-400">
                     No employees matching the current search or filters.
                   </td>
                 </tr>
               ) : (
                 filteredEmployees.map((emp, idx) => {
                   const dates = editedDates[emp.id] || {
+                    passportNo: '',
+                    passportExpiry: '',
                     airsidePassExpiry: '',
                     contingentCardExpiry: '',
                     visaExpiry: '',
@@ -536,6 +558,7 @@ export default function QuickDatesEditor({
                   const modified = isRowModified(emp.id);
                   const isSavingThis = savingRowId === emp.id;
 
+                  const passportDays = getDaysRemaining(dates.passportExpiry);
                   const airDays = getDaysRemaining(dates.airsidePassExpiry);
                   const cardDays = getDaysRemaining(dates.contingentCardExpiry);
                   const visaDays = getDaysRemaining(dates.visaExpiry);
@@ -583,6 +606,38 @@ export default function QuickDatesEditor({
                         <span className="inline-block rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700 truncate max-w-[130px]">
                           {teamMap[emp.team_id] || emp.team_name || emp.team_id}
                         </span>
+                      </td>
+
+                      {/* Passport Number */}
+                      <td className="py-2 px-3">
+                        <input
+                          type="text"
+                          value={dates.passportNo}
+                          onChange={(e) => handleDateChange(emp.id, 'passportNo', e.target.value.toUpperCase())}
+                          placeholder="e.g. N1234567"
+                          className={`w-full rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 uppercase transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            dates.passportNo !== (emp.passport_no || '')
+                              ? 'border-amber-400 bg-amber-50/80'
+                              : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        />
+                      </td>
+
+                      {/* Passport Expiry */}
+                      <td className="py-2 px-3">
+                        <div className="flex flex-col gap-1">
+                          <input
+                            type="date"
+                            value={dates.passportExpiry}
+                            onChange={(e) => handleDateChange(emp.id, 'passportExpiry', e.target.value)}
+                            className={`rounded-lg border px-2 py-1 text-xs font-mono font-bold text-slate-800 transition focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                              dates.passportExpiry !== (emp.passport_expiry || '')
+                                ? 'border-amber-400 bg-amber-50/80'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          />
+                          <div>{renderDaysBadge(passportDays)}</div>
+                        </div>
                       </td>
 
                       {/* Airside Pass Expiry */}

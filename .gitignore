@@ -10,3 +10,4 @@ data/uuds_roster.db-wal
 Thumbs.db
 
 .vercel
+.env*

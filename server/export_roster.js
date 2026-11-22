@@ -507,47 +507,36 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
     right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
   };
 
-  // Header Title Row 1
+  // Header Title Row 1 (Clean white, no background fill)
   ws.mergeCells(1, 1, 1, 15);
   const title1 = ws.getCell(1, 1);
-  title1.value = 'UUDS AERO SERVICES LLC — DUBAI INTERNATIONAL AIRPORT (DXB)';
-  title1.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-  title1.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+  title1.value = 'UUDS Aero DWC (DXB Workshop)';
+  title1.font = { bold: true, size: 14, color: { argb: 'FF0F172A' } };
   title1.alignment = { vertical: 'middle', horizontal: 'center' };
   ws.getRow(1).height = 26;
 
-  // Header Title Row 2
+  // Header Title Row 2 (Clean white, no background fill)
   ws.mergeCells(2, 1, 2, 15);
   const title2 = ws.getCell(2, 1);
-  title2.value = `OFFICIAL APPROVED MONTHLY OVERTIME RECORD FORM — ${monthLabel.toUpperCase()} (1 ROW PER EMPLOYEE PER DAY)`;
-  title2.font = { bold: true, size: 11, color: { argb: 'FFE2E8F0' } };
-  title2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+  title2.value = `MONTHLY OVERTIME RECORD FORM — ${monthLabel.toUpperCase()}`;
+  title2.font = { bold: true, size: 11, color: { argb: 'FF1E293B' } };
   title2.alignment = { vertical: 'middle', horizontal: 'center' };
   ws.getRow(2).height = 22;
 
-  // Policy Note Row 3
-  ws.mergeCells(3, 1, 3, 15);
-  const noteCell = ws.getCell(3, 1);
-  noteCell.value = 'RULE: FIRST 2 HOURS OF EXTRA DUTY HAVE NO OVERTIME. OT APPLIES AFTER 2 HOURS DEDUCTION. (e.g. Duty till 20:00, finish 23:00 = 3h extra - 2h buffer = 1.0h Approved OT).';
-  noteCell.font = { italic: true, size: 9, color: { argb: 'FFB45309' } };
-  noteCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF3C7' } };
-  noteCell.alignment = { vertical: 'middle', horizontal: 'center' };
-  ws.getRow(3).height = 20;
-
-  // Table Column Headers
+  // Table Column Headers (Row 4, all centered)
   const headers = [
     'SN', 'Date', 'UUDS ID', 'Contingent No', 'Staff Name', 'Trade / Skill',
     'Team', 'Shift', 'Duty End', 'Finish Time', 'Total Extra (Hrs)',
-    '1st 2-Hrs Non-OT', 'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Approval'
+    '1st 2-Hrs Non-OT', 'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Signature'
   ];
-  const hRow = ws.getRow(5);
+  const hRow = ws.getRow(4);
   hRow.height = 24;
   headers.forEach((h, i) => {
     const c = hRow.getCell(i + 1);
     c.value = h;
     c.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
-    c.alignment = { vertical: 'middle', horizontal: i <= 5 || i === 13 ? 'left' : 'center', wrapText: true };
+    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     c.border = thinBorder;
   });
 
@@ -555,7 +544,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   let totalDeducted = 0;
   let totalApproved = 0;
 
-  let rIdx = 6;
+  let rIdx = 5;
   rows.forEach((r, idx) => {
     const row = ws.getRow(rIdx);
     row.height = 20;
@@ -578,7 +567,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
       `-${Number(r.buffer_hours || 2.0).toFixed(1)}`,
       Number(r.approved_ot_hours).toFixed(1),
       `${r.aircraft_reg ? r.aircraft_reg + ' · ' : ''}${r.reason || ''}${r.location_bay ? ' (' + r.location_bay + ')' : ''}`,
-      `${r.team_manager_status === 'APPROVED' ? 'APPROVED' : 'PENDING'} - ${r.team_manager_name || 'Supervisor'}`
+      '' // Blank for physical signature on paper
     ];
 
     values.forEach((v, i) => {
@@ -592,7 +581,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
       if (i === 12) {
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
       }
-      c.alignment = { vertical: 'middle', horizontal: (i === 4 || i === 5 || i === 13 || i === 14) ? 'left' : 'center' };
+      c.alignment = { vertical: 'middle', horizontal: (i === 4 || i === 13) ? 'left' : 'center' };
       c.border = thinBorder;
     });
     rIdx++;
@@ -651,16 +640,20 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   // Box 2: Workshop Manager
   ws.mergeCells(rIdx, 7, rIdx + 3, 10);
   const box2 = ws.getCell(rIdx, 7);
-  box2.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: Mr. Khurram Munir\nSignature: __________________   Date: __/__/2026';
+  box2.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
   box2.font = { size: 9, bold: true };
   box2.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   box2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
   box2.border = thinBorder;
 
-  // Box 3: Project Manager
+  // Box 3: Project Manager (JOSEPH SHERONNE)
   ws.mergeCells(rIdx, 12, rIdx + 3, 15);
   const box3 = ws.getCell(rIdx, 12);
-  box3.value = 'PROJECT MANAGER APPROVAL:\n\nName: Project Manager - DXB Operations\nSignature: __________________   Date: __/__/2026';
+  box3.value = 'PROJECT MANAGER APPROVAL:\n\nName: JOSEPH SHERONNE\nSignature: __________________   Date: __/__/2026';
+  box3.font = { size: 9, bold: true };
+  box3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  box3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+  box3.border = thinBorder;
   box3.font = { size: 9, bold: true };
   box3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   box3.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };

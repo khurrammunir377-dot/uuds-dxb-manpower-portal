@@ -1877,6 +1877,8 @@ app.patch('/api/employees/batch-dates', (req, res) => {
         contingent_card_expiry = ?,
         medical_expiry = ?,
         visa_expiry = ?,
+        passport_no = ?,
+        passport_expiry = ?,
         join_date = ?,
         dxb_shift_date = ?,
         updated_at = datetime('now')
@@ -1887,12 +1889,14 @@ app.patch('/api/employees/batch-dates', (req, res) => {
   runTx(() => {
     for (const item of updates) {
       if (!item.id) continue;
-      const existing = db.prepare('SELECT id, name, team_id, airside_pass_expiry, contingent_card_expiry, visa_expiry, join_date, dxb_shift_date FROM employees WHERE id = ?').get(item.id);
+      const existing = db.prepare('SELECT id, name, team_id, airside_pass_expiry, contingent_card_expiry, visa_expiry, passport_no, passport_expiry, join_date, dxb_shift_date FROM employees WHERE id = ?').get(item.id);
       if (!existing) continue;
 
       const airside = item.airsidePassExpiry !== undefined ? String(item.airsidePassExpiry).trim() : (existing.airside_pass_expiry || '');
       const contingent = item.contingentCardExpiry !== undefined ? String(item.contingentCardExpiry).trim() : (existing.contingent_card_expiry || '');
       const visa = item.visaExpiry !== undefined ? String(item.visaExpiry).trim() : (existing.visa_expiry || '');
+      const passportNo = item.passportNo !== undefined ? String(item.passportNo).trim().toUpperCase() : (existing.passport_no || '');
+      const passportExp = item.passportExpiry !== undefined ? String(item.passportExpiry).trim() : (existing.passport_expiry || '');
       const join = item.joinDate !== undefined ? String(item.joinDate).trim() : (existing.join_date || '');
       const dxbShift = item.dxbShiftDate !== undefined ? String(item.dxbShiftDate).trim() : (existing.dxb_shift_date || '');
 
@@ -1901,6 +1905,8 @@ app.patch('/api/employees/batch-dates', (req, res) => {
         contingent,
         contingent,
         visa,
+        passportNo,
+        passportExp,
         join,
         dxbShift,
         item.id
@@ -1911,7 +1917,7 @@ app.patch('/api/employees/batch-dates', (req, res) => {
     recordAudit({
       month,
       actionType: 'BATCH_DATES_UPDATED',
-      reason: `Quick batch date update across ${count} staff record(s)`,
+      reason: `Staff documents updated across ${count} staff record(s)`,
       actor,
     });
   });
@@ -1936,6 +1942,8 @@ app.patch('/api/employees/:id', (req, res) => {
     status = existing.status,
     airsidePassExpiry = existing.airside_pass_expiry || '',
     visaExpiry = existing.visa_expiry || '',
+    passportNo = existing.passport_no || '',
+    passportExpiry = existing.passport_expiry || '',
     medicalExpiry = existing.medical_expiry || '',
     contingentCardExpiry = existing.contingent_card_expiry || existing.medical_expiry || '',
     joinDate = existing.join_date || '',
@@ -1963,6 +1971,7 @@ app.patch('/api/employees/:id', (req, res) => {
       UPDATE employees
       SET team_id = ?, name = ?, uuds_no = ?, contingent_no = ?, skill = ?, status = ?,
           airside_pass_expiry = ?, visa_expiry = ?, medical_expiry = ?, contingent_card_expiry = ?,
+          passport_no = ?, passport_expiry = ?,
           join_date = ?, dxb_shift_date = ?, mobile_no = ?,
           default_pattern_json = ?, updated_at = datetime('now')
       WHERE id = ?
@@ -1977,6 +1986,8 @@ app.patch('/api/employees/:id', (req, res) => {
       visaExpiry || '',
       effectiveContingentCardExpiry || '',
       effectiveContingentCardExpiry || '',
+      passportNo || '',
+      passportExpiry || '',
       joinDate || '',
       dxbShiftDate || '',
       mobileNo || '',

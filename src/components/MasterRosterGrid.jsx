@@ -20,6 +20,22 @@ import {
 import { SHIFT_CODES, SHIFT_STYLES, apiFetch } from '../api.js';
 import WhatsAppModal from './WhatsAppModal.jsx';
 
+const getShortTeamName = (t) => {
+  if (!t) return '';
+  const id = t.id || '';
+  if (id === 'a-check') return 'A-Check';
+  if (id === 'team-a') return 'Team A';
+  if (id === 'team-b') return 'Team B';
+  if (id === 'team-c') return 'Team C';
+  if (id === 'leather-team') return 'Leather';
+  if (id === 'paint-booth') return 'Paint';
+  if (id === 'workshop-team') return 'Workshop';
+  if (id === 'stores-team') return 'Stores';
+  if (id === 'office') return 'Office';
+  if (id === 'planner') return 'Planner';
+  return (t.name || '').replace(/On Wing\s*/i, '').replace(/\s*Team/i, '').replace(/&.*$/, '').trim();
+};
+
 export default function MasterRosterGrid({
   month,
   teams,
@@ -299,31 +315,35 @@ export default function MasterRosterGrid({
 
   return (
     <div className="space-y-4">
-      {/* Team Selector Pills */}
-      <div className="no-print flex flex-wrap items-center gap-2">
+      {/* 1st Line: Team Selector Pills in ONE line at top */}
+      <div className="no-print flex items-center gap-1.5 overflow-x-auto pb-1.5 whitespace-nowrap scrollbar-thin">
         <button
           onClick={() => setSelectedTeamId('all')}
-          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+          className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
             selectedTeamId === 'all'
-              ? 'bg-slate-900 text-white shadow-sm'
+              ? 'bg-slate-900 text-white shadow-sm ring-1 ring-slate-900'
               : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
           }`}
         >
           All Teams ({teams.reduce((s, t) => s + (t.staffCount || 0), 0)})
         </button>
-        {teams.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setSelectedTeamId(t.id)}
-            className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-              selectedTeamId === t.id
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {t.name} ({t.staffCount})
-          </button>
-        ))}
+        {teams.map((t) => {
+          const shortName = getShortTeamName(t);
+          const isSelected = selectedTeamId === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setSelectedTeamId(t.id)}
+              className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                isSelected
+                  ? 'bg-slate-900 text-white shadow-sm ring-1 ring-slate-900'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {shortName} ({t.staffCount})
+            </button>
+          );
+        })}
       </div>
 
       {/* Controls & Quick Paint Toolbar */}
@@ -443,12 +463,6 @@ export default function MasterRosterGrid({
             className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100"
           >
             <FileText className="h-3.5 w-3.5" /> PDF
-          </a>
-          <a
-            href={`/api/export/csv?month=${month}&teamId=${selectedTeamId}&type=roster`}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            <Download className="h-3.5 w-3.5" /> CSV
           </a>
           <button
             onClick={() => window.print()}

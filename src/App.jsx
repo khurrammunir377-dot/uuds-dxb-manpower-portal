@@ -106,9 +106,9 @@ const NAV_ITEMS = [
   },
   {
     id: 'dates-editor',
-    label: 'Quick Dates Editor',
+    label: 'Staff Documents',
     icon: CalendarCheck2,
-    subtitle: 'Spreadsheet Date Updates',
+    subtitle: 'Passports, Passes & Expiries',
     iconColor: 'text-teal-400',
     iconHoverColor: 'text-teal-300',
     badgeBg: 'bg-teal-500/15 border-teal-500/35 text-teal-400 group-hover:bg-teal-500/25 group-hover:border-teal-400/60 shadow-teal-500/20',
@@ -118,7 +118,7 @@ const NAV_ITEMS = [
   },
   {
     id: 'overtime',
-    label: 'Approved OT Form',
+    label: 'Overtime Record',
     icon: ClockAlert,
     subtitle: '1 Row / Staff / Day · 2h Deduct',
     iconColor: 'text-amber-400',
