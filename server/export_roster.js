@@ -525,8 +525,40 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
     return `${dd}-${mmm}-${yyyy}`;
   }
 
+  function format4Digit(timeStr, fallback = '0730') {
+    if (!timeStr) return fallback;
+    const str = String(timeStr).trim();
+    if (str.includes(':')) {
+      const [h, m] = str.split(':');
+      return String(h).padStart(2, '0') + String(m || '00').padStart(2, '0');
+    }
+    const digits = str.replace(/[^0-9]/g, '');
+    if (digits.length === 4) return digits;
+    if (digits.length === 3) return '0' + digits;
+    return digits.padEnd(4, '0').slice(0, 4) || fallback;
+  }
+
+  function getWorkTimeStr(r) {
+    let start = r.scheduled_start_time;
+    if (!start) {
+      const t = String(r.team_name || r.team_id || '').toLowerCase();
+      const isNight = r.shift_code === 'N';
+      if (t.includes('office') || t.includes('planner')) {
+        start = '0800';
+      } else if (t.includes('a-check') || t.includes('acheck')) {
+        start = isNight ? '2000' : '0800';
+      } else {
+        start = isNight ? '1930' : '0730';
+      }
+    } else {
+      start = format4Digit(start, '0730');
+    }
+    const finish = format4Digit(r.actual_end_time || r.scheduled_end_time, '2300');
+    return `${start} to ${finish}`;
+  }
+
   // Header Title Row 1 (Clean white, no background fill)
-  ws.mergeCells(1, 1, 1, 14);
+  ws.mergeCells(1, 1, 1, 11);
   const title1 = ws.getCell(1, 1);
   title1.value = 'UUDS Aero DWC (DXB Workshop)';
   title1.font = { bold: true, size: 14, color: { argb: 'FF0F172A' } };
@@ -534,7 +566,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   ws.getRow(1).height = 26;
 
   // Header Title Row 2 (Clean white, no background fill)
-  ws.mergeCells(2, 1, 2, 14);
+  ws.mergeCells(2, 1, 2, 11);
   const title2 = ws.getCell(2, 1);
   title2.value = `MONTHLY OVERTIME RECORD FORM — ${monthLabel.toUpperCase()}`;
   title2.font = { bold: true, size: 11, color: { argb: 'FF1E293B' } };
@@ -544,8 +576,8 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   // Table Column Headers (Row 4, all centered)
   const headers = [
     'SN', 'Date', 'UUDS ID', 'Staff Name', 'Trade / Skill',
-    'Team', 'Shift', 'Duty End', 'Finish Time', 'Total Extra (Hrs)',
-    '1st 2-Hrs Non-OT', 'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Signature'
+    'Team', 'Work Time', 'Total Extra (Hrs)',
+    'Approved OT (Hrs)', 'Work Reason / A/C Reg / Bay', 'Team Manager Signature'
   ];
   const hRow = ws.getRow(4);
   hRow.height = 24;
@@ -577,11 +609,8 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
       r.emp_name,
       r.skill,
       r.team_name,
-      r.shift_code || 'D',
-      r.scheduled_end_time || '20:00',
-      r.actual_end_time,
+      getWorkTimeStr(r),
       Number(r.total_extra_hours).toFixed(1),
-      `-${Number(r.buffer_hours || 2.0).toFixed(1)}`,
       Number(r.approved_ot_hours).toFixed(1),
       `${r.aircraft_reg ? r.aircraft_reg + ' · ' : ''}${r.reason || ''}${r.location_bay ? ' (' + r.location_bay + ')' : ''}`,
       '' // Blank for physical signature on paper
@@ -592,13 +621,13 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
       c.value = v;
       c.font = {
         size: 9,
-        bold: i === 11,
-        color: { argb: i === 11 ? 'FF047857' : (i === 10 ? 'FFB45309' : 'FF0F172A') }
+        bold: i === 8,
+        color: { argb: i === 8 ? 'FF047857' : 'FF0F172A' }
       };
-      if (i === 11) {
+      if (i === 8) {
         c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
       }
-      c.alignment = { vertical: 'middle', horizontal: (i === 3 || i === 12) ? 'left' : 'center' };
+      c.alignment = { vertical: 'middle', horizontal: (i === 3 || i === 9) ? 'left' : 'center' };
       c.border = thinBorder;
     });
     rIdx++;
@@ -608,33 +637,28 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   const totalRow = ws.getRow(rIdx);
   totalRow.height = 24;
   totalRow.getCell(1).value = 'TOTALS';
-  ws.mergeCells(rIdx, 1, rIdx, 9);
+  ws.mergeCells(rIdx, 1, rIdx, 7);
   totalRow.getCell(1).font = { bold: true, size: 10, color: { argb: 'FF0F172A' } };
   totalRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'right' };
   totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  totalRow.getCell(10).value = totalExtra.toFixed(1);
-  totalRow.getCell(10).font = { bold: true, size: 10 };
+  totalRow.getCell(8).value = totalExtra.toFixed(1);
+  totalRow.getCell(8).font = { bold: true, size: 10 };
+  totalRow.getCell(8).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(8).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+
+  totalRow.getCell(9).value = totalApproved.toFixed(1);
+  totalRow.getCell(9).font = { bold: true, size: 11, color: { argb: 'FF047857' } };
+  totalRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'center' };
+  totalRow.getCell(9).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
+
+  ws.mergeCells(rIdx, 10, rIdx, 11);
+  totalRow.getCell(10).value = `${rows.length} Total Duty OT Records`;
+  totalRow.getCell(10).font = { bold: true, size: 9, color: { argb: 'FF475569' } };
   totalRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'center' };
   totalRow.getCell(10).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
 
-  totalRow.getCell(11).value = `-${totalDeducted.toFixed(1)}`;
-  totalRow.getCell(11).font = { bold: true, size: 10, color: { argb: 'FFB45309' } };
-  totalRow.getCell(11).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(11).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-
-  totalRow.getCell(12).value = totalApproved.toFixed(1);
-  totalRow.getCell(12).font = { bold: true, size: 11, color: { argb: 'FF047857' } };
-  totalRow.getCell(12).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(12).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD1FAE5' } };
-
-  ws.mergeCells(rIdx, 13, rIdx, 14);
-  totalRow.getCell(13).value = `${rows.length} Total Duty OT Records`;
-  totalRow.getCell(13).font = { bold: true, size: 9, color: { argb: 'FF475569' } };
-  totalRow.getCell(13).alignment = { vertical: 'middle', horizontal: 'center' };
-  totalRow.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
-
-  for (let c = 1; c <= 14; c++) {
+  for (let c = 1; c <= 11; c++) {
     totalRow.getCell(c).border = thinBorder;
   }
 
@@ -646,7 +670,7 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
 
   rIdx += 1;
   // Box 1: Workshop Manager
-  ws.mergeCells(rIdx, 2, rIdx + 3, 6);
+  ws.mergeCells(rIdx, 2, rIdx + 3, 5);
   const box1 = ws.getCell(rIdx, 2);
   box1.value = 'WORKSHOP MANAGER APPROVAL:\n\nName: ______________________\nSignature: __________________   Date: __/__/2026';
   box1.font = { size: 9, bold: true };
@@ -655,15 +679,15 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
   box1.border = thinBorder;
 
   // Box 2: Project Manager (JOSEPH SHERONNE)
-  ws.mergeCells(rIdx, 8, rIdx + 3, 13);
-  const box2 = ws.getCell(rIdx, 8);
+  ws.mergeCells(rIdx, 7, rIdx + 3, 11);
+  const box2 = ws.getCell(rIdx, 7);
   box2.value = 'PROJECT MANAGER APPROVAL:\n\nName: JOSEPH SHERONNE\nSignature: __________________   Date: __/__/2026';
   box2.font = { size: 9, bold: true };
   box2.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
   box2.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
   box2.border = thinBorder;
 
-  const colWidths = [5, 14, 13, 24, 18, 16, 7, 10, 11, 13, 14, 14, 28, 24];
+  const colWidths = [5, 14, 13, 24, 18, 16, 16, 14, 16, 30, 24];
   colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
 
   return Buffer.from(await wb.xlsx.writeBuffer());

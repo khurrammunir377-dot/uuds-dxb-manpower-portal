@@ -146,6 +146,38 @@ export default function OvertimeHub({
     return shift === 'N' ? '07:30' : '19:30';
   };
 
+  const format4Digit = (timeStr, fallback = '0730') => {
+    if (!timeStr) return fallback;
+    const str = String(timeStr).trim();
+    if (str.includes(':')) {
+      const [h, m] = str.split(':');
+      return String(h).padStart(2, '0') + String(m || '00').padStart(2, '0');
+    }
+    const digits = str.replace(/[^0-9]/g, '');
+    if (digits.length === 4) return digits;
+    if (digits.length === 3) return '0' + digits;
+    return digits.padEnd(4, '0').slice(0, 4) || fallback;
+  };
+
+  const getWorkTimeDisplay = (rec) => {
+    let start = rec.scheduled_start_time;
+    if (!start) {
+      const t = String(rec.team_name || rec.team_id || '').toLowerCase();
+      const isNight = rec.shift_code === 'N';
+      if (t.includes('office') || t.includes('planner')) {
+        start = '0800';
+      } else if (t.includes('a-check') || t.includes('acheck')) {
+        start = isNight ? '2000' : '0800';
+      } else {
+        start = isNight ? '1930' : '0730';
+      }
+    } else {
+      start = format4Digit(start, '0730');
+    }
+    const finish = format4Digit(rec.actual_end_time || rec.scheduled_end_time, '2300');
+    return `${start} to ${finish}`;
+  };
+
   const handleOpenNewModal = () => {
     setEditingRecord(null);
     const defaultEmp = employees[0]?.id || '';
@@ -400,12 +432,9 @@ export default function OvertimeHub({
                 <th className="py-2.5 px-2 text-center min-w-[140px]">Staff Name</th>
                 <th className="py-2.5 px-2 text-center min-w-[90px]">Trade / Skill</th>
                 <th className="py-2.5 px-2 text-center min-w-[85px]">Team</th>
-                <th className="py-2.5 px-1.5 text-center w-10">Shift</th>
-                <th className="py-2.5 px-2 text-center w-16">Duty End</th>
-                <th className="py-2.5 px-2 text-center w-16">Actual Finish</th>
+                <th className="py-2.5 px-2 text-center w-28 whitespace-nowrap">Work Time</th>
                 <th className="py-2.5 px-2 text-center w-16">Extra Time</th>
-                <th className="py-2.5 px-2 text-center w-16 text-rose-300 print:text-black">1st 2h Non-OT</th>
-                <th className="py-2.5 px-2 text-center w-18 text-emerald-300 print:text-black font-black">Approved OT</th>
+                <th className="py-2.5 px-2 text-center w-20 text-emerald-300 print:text-black font-black">Approved OT</th>
                 <th className="py-2.5 px-2 text-center min-w-[150px]">Work / A/C Reg / Bay</th>
                 <th className="py-2.5 px-2 text-center min-w-[130px] font-bold text-amber-300 print:text-black">
                   Team Manager Signature
@@ -416,13 +445,13 @@ export default function OvertimeHub({
             <tbody className="divide-y divide-slate-200 font-sans print:divide-gray-400">
               {loading && records.length === 0 ? (
                 <tr>
-                  <td colSpan="15" className="py-10 text-center text-slate-400">
+                  <td colSpan="12" className="py-10 text-center text-slate-400">
                     Loading overtime records…
                   </td>
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan="15" className="py-10 text-center text-slate-400">
+                  <td colSpan="12" className="py-10 text-center text-slate-400">
                     No overtime records found. Click "+ Log Overtime" to add entries.
                   </td>
                 </tr>
@@ -454,20 +483,11 @@ export default function OvertimeHub({
                         {rec.team_name}
                       </span>
                     </td>
-                    <td className="py-2 px-1.5 text-center font-mono font-bold text-slate-800 print:text-black">
-                      {rec.shift_code || 'D'}
-                    </td>
-                    <td className="py-2 px-2 text-center font-mono text-slate-600 print:text-black">
-                      {rec.scheduled_end_time || '19:30'}
-                    </td>
-                    <td className="py-2 px-2 text-center font-mono font-bold text-amber-800 print:text-black">
-                      {rec.actual_end_time}
+                    <td className="py-2 px-2 text-center font-mono font-bold text-slate-800 print:text-black whitespace-nowrap">
+                      {getWorkTimeDisplay(rec)}
                     </td>
                     <td className="py-2 px-2 text-center font-mono text-slate-700 print:text-black font-semibold">
                       {Number(rec.total_extra_hours).toFixed(1)} h
-                    </td>
-                    <td className="py-2 px-2 text-center font-mono text-rose-600 print:text-black">
-                      -{Number(rec.buffer_hours || 2.0).toFixed(1)} h
                     </td>
                     <td className="py-2 px-2 text-center font-mono font-black text-emerald-700 print:text-black">
                       <span className="rounded bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 print:border-none print:p-0">
@@ -523,14 +543,11 @@ export default function OvertimeHub({
             {/* Totals Summary Row */}
             <tfoot className="bg-slate-100 text-slate-900 border-t-2 border-slate-300 font-bold print:bg-white print:border-black">
               <tr>
-                <td colSpan="9" className="py-2.5 px-3 text-right uppercase tracking-wider text-xs">
+                <td colSpan="7" className="py-2.5 px-3 text-right uppercase tracking-wider text-xs">
                   Monthly Total Overtime Summary:
                 </td>
                 <td className="py-2.5 px-2 text-center font-mono text-slate-900 text-xs">
                   {(summary.totalExtraHours || 0).toFixed(1)} h
-                </td>
-                <td className="py-2.5 px-2 text-center font-mono text-rose-700 text-xs print:text-black">
-                  -{(summary.totalDeductedHours || 0).toFixed(1)} h
                 </td>
                 <td className="py-2.5 px-2 text-center font-mono text-emerald-700 text-sm font-black print:text-black">
                   +{(summary.totalApprovedOtHours || 0).toFixed(1)} h
