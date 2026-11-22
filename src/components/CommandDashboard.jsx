@@ -468,7 +468,7 @@ export default function CommandDashboard({
             onClick={() => onSelectTeamRoster('all')}
             className="inline-flex items-center gap-1 text-xs font-semibold text-sky-700 hover:text-sky-900"
           >
-            Open Master Grid (All {totals.totalStaff}) <ArrowRight className="h-3.5 w-3.5" />
+            Open Master Grid (All <span className="text-blue-600 font-bold">{totals.totalStaff}</span>) <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -781,7 +781,7 @@ export default function CommandDashboard({
                         expiryModalMonth.key === m.key ? 'bg-amber-400 text-slate-950' : 'text-slate-300 hover:text-white'
                       }`}
                     >
-                      {m.label} ({m.total})
+                      {m.label} (<span className={expiryModalMonth.key === m.key ? 'text-slate-950 font-black' : 'text-sky-400 font-bold'}>{m.total}</span>)
                     </button>
                   ))}
                 </div>

@@ -186,7 +186,7 @@ export default function StaffDirectory({
         <div>
           <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
             <Users className="h-5 w-5 text-sky-600" />
-            UUDS DXB Staff Directory ({filtered.length})
+            UUDS DXB Staff Directory (<span className="text-blue-600 font-bold">{filtered.length}</span>)
           </h2>
           <p className="text-xs text-slate-500">
             Add new joiners, transfer staff between teams, update UUDS/Contingent IDs, or deactivate leavers.

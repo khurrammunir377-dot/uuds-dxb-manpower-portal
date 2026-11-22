@@ -229,7 +229,7 @@ export default function MonthlyBuilder({
                   }`}
                 >
                   {selected && <Check className="h-3.5 w-3.5" />}
-                  {t.name} ({t.staffCount})
+                  {t.name} (<span className={selected ? 'text-sky-200 font-bold' : 'text-blue-600 font-bold'}>{t.staffCount}</span>)
                 </button>
               );
             })}

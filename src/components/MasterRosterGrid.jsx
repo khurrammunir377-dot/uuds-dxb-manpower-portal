@@ -325,7 +325,7 @@ export default function MasterRosterGrid({
               : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
           }`}
         >
-          All Teams ({teams.reduce((s, t) => s + (t.staffCount || 0), 0)})
+          All Teams (<span className={selectedTeamId === 'all' ? 'text-sky-300 font-bold' : 'text-blue-600 font-bold'}>{teams.reduce((s, t) => s + (t.staffCount || 0), 0)}</span>)
         </button>
         {teams.map((t) => {
           const shortName = getShortTeamName(t);
@@ -340,7 +340,7 @@ export default function MasterRosterGrid({
                   : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {shortName} ({t.staffCount})
+              {shortName} (<span className={isSelected ? 'text-sky-300 font-bold' : 'text-blue-600 font-bold'}>{t.staffCount}</span>)
             </button>
           );
         })}
@@ -420,7 +420,7 @@ export default function MasterRosterGrid({
               title="Undo last shift change (Ctrl+Z)"
               className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
             >
-              <RotateCcw className="h-3.5 w-3.5" /> Undo ({undoStack.length})
+              <RotateCcw className="h-3.5 w-3.5" /> Undo (<span className="text-blue-600 font-bold">{undoStack.length}</span>)
             </button>
           )}
           {roster?.teamStatus && (

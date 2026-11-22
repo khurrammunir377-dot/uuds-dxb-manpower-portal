@@ -371,7 +371,7 @@ export default function QuickDatesEditor({
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  Save All Changes ({modifiedEmployeeIds.length})
+                  Save All Changes (<span className="text-sky-200 font-bold">{modifiedEmployeeIds.length}</span>)
                 </>
               )}
             </button>

@@ -127,7 +127,7 @@ export default function RecordsAudit({ month, teams, currentUser, notify }) {
               tab === 'audit' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            <History className="h-3.5 w-3.5" /> Full Change & Audit Log ({logs.length})
+            <History className="h-3.5 w-3.5" /> Full Change & Audit Log (<span className={tab === 'audit' ? 'text-sky-300 font-bold' : 'text-blue-600 font-bold'}>{logs.length}</span>)
           </button>
           <button
             onClick={() => setTab('ledger')}
@@ -143,7 +143,7 @@ export default function RecordsAudit({ month, teams, currentUser, notify }) {
               tab === 'revisions' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            <Archive className="h-3.5 w-3.5" /> Published Revisions ({summaryData?.revisions?.length || 0})
+            <Archive className="h-3.5 w-3.5" /> Published Revisions (<span className={tab === 'revisions' ? 'text-sky-300 font-bold' : 'text-blue-600 font-bold'}>{summaryData?.revisions?.length || 0}</span>)
           </button>
           {isAdmin && (
             <button
