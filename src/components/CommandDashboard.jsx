@@ -175,104 +175,99 @@ export default function CommandDashboard({
               <span className="font-black text-amber-300 drop-shadow-[0_0_8px_rgba(251,191,36,0.35)]">
                 {formattedTime}
               </span>
-              <span className="rounded bg-amber-400/15 border border-amber-400/30 px-1 py-0.5 text-[9px] font-black text-amber-300 uppercase ml-0.5">
-                GST
-              </span>
             </div>
           </div>
         </div>
 
         {/* Single Unified Action Line: Day Stepper, Excel, PDF, WhatsApp, Emergency, Next Month, and Expiry Counter */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3.5">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Day Stepper */}
-            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
-              <button
-                onClick={() => setSelectedDay((d) => Math.max(1, d - 1))}
-                disabled={selectedDay <= 1}
-                className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:opacity-40"
-                title="Previous Day"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(Number(e.target.value))}
-                className="bg-transparent px-2 text-sm font-semibold text-slate-800 focus:outline-none"
-              >
-                {Array.from({ length: maxDays }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    Day {String(d).padStart(2, '0')}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setSelectedDay((d) => Math.min(maxDays, d + 1))}
-                disabled={selectedDay >= maxDays}
-                className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:opacity-40"
-                title="Next Day"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-
-            <a
-              href={`/api/export/excel?month=${month.month}&teamId=all`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
-            </a>
-            <a
-              href={`/api/export/pdf?month=${month.month}&teamId=all`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100"
-            >
-              <FileText className="h-3.5 w-3.5" /> PDF
-            </a>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3.5">
+          {/* Day Stepper */}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1">
             <button
-              onClick={() => {
-                const lines = [
-                  `*UUDS DXB WORKSHOP — DAILY BRIEFING*`,
-                  `*Date:* ${month.label} — Day ${selectedDay} (${dayOfWeek})`,
-                  `*Total On Duty:* ${totals.onDuty} / ${totals.totalStaff} (Day: ${totals.dayShift}, Night: ${totals.nightShift}, General/Trn: ${totals.generalTraining})`,
-                  `*OFF:* ${totals.offDuty} | *Vacation/Leave:* ${totals.onLeave}`,
-                  '',
-                  ...teamSummaries.map((t) => `• *${t.name}:* ${t.onDuty}/${t.totalStaff} On Duty (D:${t.counts.D} N:${t.counts.N} M/T:${t.counts.M + t.counts.T} OFF:${t.counts.OFF})`),
-                ];
-                window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank', 'noopener,noreferrer');
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
+              onClick={() => setSelectedDay((d) => Math.max(1, d - 1))}
+              disabled={selectedDay <= 1}
+              className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:opacity-40"
+              title="Previous Day"
             >
-              <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+              <ChevronLeft className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => onNavigate('emergency')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700"
+            <select
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(Number(e.target.value))}
+              className="bg-transparent px-2 text-sm font-semibold text-slate-800 focus:outline-none"
             >
-              <Zap className="h-3.5 w-3.5" /> Emergency
-            </button>
+              {Array.from({ length: maxDays }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>
+                  Day {String(d).padStart(2, '0')}
+                </option>
+              ))}
+            </select>
             <button
-              onClick={() => onNavigate('builder')}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+              onClick={() => setSelectedDay((d) => Math.min(maxDays, d + 1))}
+              disabled={selectedDay >= maxDays}
+              className="rounded-lg p-1.5 text-slate-600 hover:bg-white disabled:opacity-40"
+              title="Next Day"
             >
-              <CalendarDays className="h-3.5 w-3.5 text-sky-400" /> Next Month
+              <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Expiry Pill: In Same Row With WhatsApp, Adjusted Right */}
+          <a
+            href={`/api/export/excel?month=${month.month}&teamId=all`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
+          </a>
+          <a
+            href={`/api/export/pdf?month=${month.month}&teamId=all`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-800 hover:bg-rose-100"
+          >
+            <FileText className="h-3.5 w-3.5" /> PDF
+          </a>
+          <button
+            onClick={() => {
+              const lines = [
+                `*UUDS DXB WORKSHOP — DAILY BRIEFING*`,
+                `*Date:* ${month.label} — Day ${selectedDay} (${dayOfWeek})`,
+                `*Total On Duty:* ${totals.onDuty} / ${totals.totalStaff} (Day: ${totals.dayShift}, Night: ${totals.nightShift}, General/Trn: ${totals.generalTraining})`,
+                `*OFF:* ${totals.offDuty} | *Vacation/Leave:* ${totals.onLeave}`,
+                '',
+                ...teamSummaries.map((t) => `• *${t.name}:* ${t.onDuty}/${t.totalStaff} On Duty (D:${t.counts.D} N:${t.counts.N} M/T:${t.counts.M + t.counts.T} OFF:${t.counts.OFF})`),
+              ];
+              window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank', 'noopener,noreferrer');
+            }}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-700"
+          >
+            <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+          </button>
+          <button
+            onClick={() => onNavigate('emergency')}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-rose-700"
+          >
+            <Zap className="h-3.5 w-3.5" /> Emergency
+          </button>
+          <button
+            onClick={() => onNavigate('builder')}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          >
+            <CalendarDays className="h-3.5 w-3.5 text-sky-400" /> Next Month
+          </button>
+
+          {/* Expiry Pill: in same line right after Next Month */}
           <div
             onClick={() => setExpiryModalMonth({ key: 'ALL', label: 'Next 3 Months' })}
             title="Click to view expiring dates & update them"
-            className="group flex cursor-pointer items-center gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/90 px-3.5 py-1.5 shadow-xs transition hover:border-amber-400 hover:bg-amber-100/90"
+            className="group flex cursor-pointer items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50/90 px-3 py-1 shadow-xs transition hover:border-amber-400 hover:bg-amber-100/90"
           >
-            <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-amber-500 text-white text-xs font-black group-hover:bg-amber-600 transition shadow-2xs">
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-5 w-5 items-center justify-center rounded-lg bg-amber-500 text-white text-[10px] font-black group-hover:bg-amber-600 transition shadow-2xs">
                 !
               </span>
               <div className="leading-tight">
-                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-amber-950">
+                <span className="block text-[10.5px] font-extrabold uppercase tracking-wider text-amber-950">
                   3-Month Expiry
                 </span>
-                <div className="flex items-center gap-1 mt-0.5 text-[10.5px] font-black">
+                <div className="flex items-center gap-1 mt-0.5 text-[10px] font-black">
                   <span className="text-blue-700 font-extrabold">Passport</span>
                   <span className="text-amber-400">·</span>
                   <span className="text-teal-700 font-extrabold">Pass</span>
@@ -284,10 +279,10 @@ export default function CommandDashboard({
               </div>
             </div>
 
-            <div className="h-7 w-px bg-amber-300 mx-1" />
+            <div className="h-6 w-px bg-amber-300 mx-0.5" />
 
             {/* Month-by-month chips */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {expirySummary.length > 0 ? (
                 expirySummary.map((m) => (
                   <button
@@ -297,13 +292,13 @@ export default function CommandDashboard({
                       e.stopPropagation();
                       setExpiryModalMonth(m);
                     }}
-                    className="rounded-xl border border-amber-200/90 bg-white px-2 py-1 text-center shadow-xs transition hover:border-amber-400 hover:bg-amber-50 hover:scale-105"
+                    className="rounded-xl border border-amber-200/90 bg-white px-2 py-0.5 text-center shadow-xs transition hover:border-amber-400 hover:bg-amber-50 hover:scale-105"
                     title={`Click to view and update ${m.label} expiries`}
                   >
-                    <div className="text-[11px] font-extrabold text-slate-900 leading-none">
+                    <div className="text-[10px] font-extrabold text-slate-900 leading-none">
                       {m.label}
                     </div>
-                    <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] font-extrabold">
+                    <div className="mt-0.5 flex items-center justify-center gap-1 text-[9.5px] font-extrabold">
                       <span className="inline-flex items-center rounded bg-blue-50 px-1 py-0.5 text-blue-700 font-black" title="Passport Expiries">
                         PPT:{m.passport ?? 0}
                       </span>

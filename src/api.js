@@ -111,8 +111,35 @@ export function setAuthToken(token) {
   }
 }
 
+const apiCache = new Map();
+const CACHE_TTL_MS = 60000; // 60 seconds
+
+export function invalidateApiCache(prefix = '') {
+  if (!prefix) {
+    apiCache.clear();
+  } else {
+    for (const key of apiCache.keys()) {
+      if (key.startsWith(prefix) || key.includes(prefix)) {
+        apiCache.delete(key);
+      }
+    }
+  }
+}
+
 export async function apiFetch(url, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
   const token = getAuthToken();
+
+  // Clear cache on mutations (POST, PATCH, DELETE, PUT)
+  if (method !== 'GET') {
+    apiCache.clear();
+  } else if (!options.headers?.['no-cache'] && !options.noCache) {
+    const cached = apiCache.get(url);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data;
+    }
+  }
+
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -131,5 +158,10 @@ export async function apiFetch(url, options = {}) {
   if (!res.ok) {
     throw new Error(data.error || `Request failed (${res.status})`);
   }
+
+  if (method === 'GET' && !url.includes('/api/auth/')) {
+    apiCache.set(url, { data, timestamp: Date.now() });
+  }
+
   return data;
 }

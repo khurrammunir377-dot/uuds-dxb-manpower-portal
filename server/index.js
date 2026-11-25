@@ -294,32 +294,47 @@ app.get('/api/overview', (req, res) => {
   `).all(month);
 
   const activeEmployees = db.prepare("SELECT * FROM employees WHERE status = 'ACTIVE'").all();
-  const teamSummaries = teams.map((team) => {
-    const teamEmps = activeEmployees.filter((e) => e.team_id === team.id);
-    const dayEntries = entries.filter((e) => e.day === day && (e.deployed_team_id || e.team_id) === team.id);
-    const counts = { D: 0, N: 0, M: 0, T: 0, OFF: 0, V: 0, L: 0, SL: 0, EM: 0 };
-    for (const en of dayEntries) {
-      counts[en.shift_code] = (counts[en.shift_code] || 0) + 1;
+  const empsByTeam = new Map();
+  for (const emp of activeEmployees) {
+    if (!empsByTeam.has(emp.team_id)) empsByTeam.set(emp.team_id, []);
+    empsByTeam.get(emp.team_id).push(emp);
+  }
+
+  // Pre-aggregate entries by team and day in a single pass O(entries.length)
+  const teamDayMap = new Map();
+  for (const en of entries) {
+    const tid = en.deployed_team_id || en.team_id;
+    const key = `${tid}_${en.day}`;
+    let stat = teamDayMap.get(key);
+    if (!stat) {
+      stat = { D: 0, N: 0, M: 0, T: 0, OFF: 0, V: 0, L: 0, SL: 0, EM: 0, working: 0 };
+      teamDayMap.set(key, stat);
     }
-    const onDuty = counts.D + counts.N + counts.M + counts.T;
+    stat[en.shift_code] = (stat[en.shift_code] || 0) + 1;
+    if (WORKING_SHIFTS.has(en.shift_code)) {
+      stat.working++;
+    }
+  }
+
+  const teamSummaries = teams.map((team) => {
+    const teamEmps = empsByTeam.get(team.id) || [];
+    const dayStat = teamDayMap.get(`${team.id}_${day}`) || { D: 0, N: 0, M: 0, T: 0, OFF: 0, V: 0, L: 0, SL: 0, EM: 0, working: 0 };
+    const counts = { D: dayStat.D, N: dayStat.N, M: dayStat.M, T: dayStat.T, OFF: dayStat.OFF, V: dayStat.V, L: dayStat.L, SL: dayStat.SL, EM: dayStat.EM };
+    const onDuty = dayStat.working;
     const onLeave = counts.V + counts.L + counts.SL + counts.EM;
 
     // Daily trend across entire month
     const dailyTrend = [];
     for (let d = 1; d <= monthMeta.days_in_month; d++) {
-      const dEntries = entries.filter((e) => e.day === d && (e.deployed_team_id || e.team_id) === team.id);
-      const working = dEntries.filter((e) => WORKING_SHIFTS.has(e.shift_code)).length;
-      const dayShift = dEntries.filter((e) => e.shift_code === 'D').length;
-      const nightShift = dEntries.filter((e) => e.shift_code === 'N').length;
-      const midShift = dEntries.filter((e) => e.shift_code === 'M' || e.shift_code === 'T').length;
+      const dStat = teamDayMap.get(`${team.id}_${d}`) || { D: 0, N: 0, M: 0, T: 0, working: 0 };
       dailyTrend.push({
         day: d,
         dow: getDayOfWeek(month, d),
-        onDuty: working,
-        D: dayShift,
-        N: nightShift,
-        M: midShift,
-        belowTarget: working < team.min_daily_target,
+        onDuty: dStat.working,
+        D: dStat.D,
+        N: dStat.N,
+        M: dStat.M + dStat.T,
+        belowTarget: dStat.working < team.min_daily_target,
       });
     }
 

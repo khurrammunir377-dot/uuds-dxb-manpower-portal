@@ -19,7 +19,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { apiFetch, setAuthToken, setUnauthorizedHandler } from './api.js';
+import { apiFetch, setAuthToken, setUnauthorizedHandler, invalidateApiCache } from './api.js';
 import LoginPage from './components/LoginPage.jsx';
 import CommandDashboard from './components/CommandDashboard.jsx';
 import MasterRosterGrid from './components/MasterRosterGrid.jsx';
@@ -175,6 +175,17 @@ export default function App() {
   };
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [visitedTabs, setVisitedTabs] = useState(() => new Set(['dashboard']));
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -196,6 +207,9 @@ export default function App() {
     } else {
       setSelectedDay(1);
     }
+    // Invalidate API cache on month change and reset visited tabs
+    invalidateApiCache();
+    setVisitedTabs(new Set([activeTab]));
   };
 
   const notify = useCallback((msg, type = 'success') => {
@@ -636,124 +650,142 @@ export default function App() {
 
         {/* Main Content Area - Independently scrollable while footer stays pinned */}
         <main className="mx-auto w-full max-w-[1600px] flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6">
-          {activeTab === 'dashboard' && (
-            <CommandDashboard
-              overview={overview}
-              selectedDay={selectedDay}
-              setSelectedDay={setSelectedDay}
-              onNavigate={setActiveTab}
-              onSelectTeamRoster={goToTeamRoster}
-              onDataChanged={() => loadAll()}
-              notify={notify}
-              onOpenEmergencyForIncident={(inc) => {
-                setEmergencyPrefill({
-                  incidentId: inc.id,
-                  employeeId: inc.employee_id,
-                  day: inc.start_day,
-                });
-                setActiveTab('emergency');
-              }}
-            />
+          {visitedTabs.has('dashboard') && (
+            <div className={activeTab === 'dashboard' ? 'block' : 'hidden'}>
+              <CommandDashboard
+                overview={overview}
+                selectedDay={selectedDay}
+                setSelectedDay={setSelectedDay}
+                onNavigate={setActiveTab}
+                onSelectTeamRoster={goToTeamRoster}
+                onDataChanged={() => loadAll()}
+                notify={notify}
+                onOpenEmergencyForIncident={(inc) => {
+                  setEmergencyPrefill({
+                    incidentId: inc.id,
+                    employeeId: inc.employee_id,
+                    day: inc.start_day,
+                  });
+                  setActiveTab('emergency');
+                }}
+              />
+            </div>
           )}
 
-          {activeTab === 'roster' && (
-            <MasterRosterGrid
-              month={activeMonth}
-              teams={meta.teams}
-              selectedTeamId={selectedTeamId}
-              setSelectedTeamId={setSelectedTeamId}
-              onDataChanged={() => loadAll()}
-              notify={notify}
-              onStartSwapOrCover={(target) => {
-                setEmergencyPrefill(target);
-                setActiveTab('emergency');
-              }}
-            />
+          {visitedTabs.has('roster') && (
+            <div className={activeTab === 'roster' ? 'block' : 'hidden'}>
+              <MasterRosterGrid
+                month={activeMonth}
+                teams={meta.teams}
+                selectedTeamId={selectedTeamId}
+                setSelectedTeamId={setSelectedTeamId}
+                onDataChanged={() => loadAll()}
+                notify={notify}
+                onStartSwapOrCover={(target) => {
+                  setEmergencyPrefill(target);
+                  setActiveTab('emergency');
+                }}
+              />
+            </div>
           )}
 
-          {activeTab === 'emergency' && (
-            <EmergencyHub
-              month={activeMonth}
-              teams={meta.teams}
-              employees={employees}
-              overview={overview}
-              prefill={emergencyPrefill}
-              onClearPrefill={() => setEmergencyPrefill(null)}
-              onDataChanged={() => loadAll()}
-              notify={notify}
-            />
+          {visitedTabs.has('emergency') && (
+            <div className={activeTab === 'emergency' ? 'block' : 'hidden'}>
+              <EmergencyHub
+                month={activeMonth}
+                teams={meta.teams}
+                employees={employees}
+                overview={overview}
+                prefill={emergencyPrefill}
+                onClearPrefill={() => setEmergencyPrefill(null)}
+                onDataChanged={() => loadAll()}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'builder' && (
-            <MonthlyBuilder
-              months={meta.months}
-              teams={meta.teams}
-              presets={meta.presets}
-              activeMonth={activeMonth}
-              onGenerated={(newMonth, targetTeamId = 'all') => {
-                setActiveMonth(newMonth);
-                setSelectedDay(1);
-                setSelectedTeamId(targetTeamId);
-                loadAll(newMonth, 1);
-                setActiveTab('roster');
-              }}
-              notify={notify}
-            />
+          {visitedTabs.has('builder') && (
+            <div className={activeTab === 'builder' ? 'block' : 'hidden'}>
+              <MonthlyBuilder
+                months={meta.months}
+                teams={meta.teams}
+                presets={meta.presets}
+                activeMonth={activeMonth}
+                onGenerated={(newMonth, targetTeamId = 'all') => {
+                  setActiveMonth(newMonth);
+                  setSelectedDay(1);
+                  setSelectedTeamId(targetTeamId);
+                  loadAll(newMonth, 1);
+                  setActiveTab('roster');
+                }}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'import' && (
-            <ImportRoster
-              teams={meta.teams}
-              activeMonth={activeMonth}
-              onImported={(importedMonth, importedTeamId) => {
-                setActiveMonth(importedMonth);
-                setSelectedDay(1);
-                setSelectedTeamId(importedTeamId);
-                loadAll(importedMonth, 1);
-                setActiveTab('roster');
-              }}
-              notify={notify}
-            />
+          {visitedTabs.has('import') && (
+            <div className={activeTab === 'import' ? 'block' : 'hidden'}>
+              <ImportRoster
+                teams={meta.teams}
+                activeMonth={activeMonth}
+                onImported={(importedMonth, importedTeamId) => {
+                  setActiveMonth(importedMonth);
+                  setSelectedDay(1);
+                  setSelectedTeamId(importedTeamId);
+                  loadAll(importedMonth, 1);
+                  setActiveTab('roster');
+                }}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'staff' && (
-            <StaffDirectory
-              teams={meta.teams}
-              employees={employees}
-              presets={meta.presets}
-              activeMonth={activeMonth}
-              onDataChanged={() => loadAll()}
-              notify={notify}
-            />
+          {visitedTabs.has('staff') && (
+            <div className={activeTab === 'staff' ? 'block' : 'hidden'}>
+              <StaffDirectory
+                teams={meta.teams}
+                employees={employees}
+                presets={meta.presets}
+                activeMonth={activeMonth}
+                onDataChanged={() => loadAll()}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'dates-editor' && (
-            <QuickDatesEditor
-              teams={meta.teams}
-              employees={employees}
-              activeMonth={activeMonth}
-              onDataChanged={() => loadAll()}
-              notify={notify}
-            />
+          {visitedTabs.has('dates-editor') && (
+            <div className={activeTab === 'dates-editor' ? 'block' : 'hidden'}>
+              <QuickDatesEditor
+                teams={meta.teams}
+                employees={employees}
+                activeMonth={activeMonth}
+                onDataChanged={() => loadAll()}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'overtime' && (
-            <OvertimeHub
-              activeMonth={activeMonth}
-              teams={meta.teams}
-              employees={employees}
-              currentUser={currentUser}
-              notify={notify}
-            />
+          {visitedTabs.has('overtime') && (
+            <div className={activeTab === 'overtime' ? 'block' : 'hidden'}>
+              <OvertimeHub
+                activeMonth={activeMonth}
+                teams={meta.teams}
+                employees={employees}
+                currentUser={currentUser}
+                notify={notify}
+              />
+            </div>
           )}
 
-          {activeTab === 'records' && (
-            <RecordsAudit
-              month={activeMonth}
-              teams={meta.teams}
-              currentUser={currentUser}
-              notify={notify}
-            />
+          {visitedTabs.has('records') && (
+            <div className={activeTab === 'records' ? 'block' : 'hidden'}>
+              <RecordsAudit
+                month={activeMonth}
+                teams={meta.teams}
+                currentUser={currentUser}
+                notify={notify}
+              />
+            </div>
           )}
         </main>
 
