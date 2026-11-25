@@ -395,10 +395,12 @@ app.get('/api/overview', (req, res) => {
     const d = new Date(currentDate.getFullYear(), currentDate.getMonth() + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+    let passportCount = 0;
     let passCount = 0;
     let cardCount = 0;
     let visaCount = 0;
     for (const emp of activeEmployees) {
+      if (emp.passport_expiry && emp.passport_expiry.startsWith(key)) passportCount++;
       if (emp.airside_pass_expiry && emp.airside_pass_expiry.startsWith(key)) passCount++;
       if ((emp.contingent_card_expiry || emp.medical_expiry) && (emp.contingent_card_expiry || emp.medical_expiry).startsWith(key)) cardCount++;
       if (emp.visa_expiry && emp.visa_expiry.startsWith(key)) visaCount++;
@@ -406,10 +408,11 @@ app.get('/api/overview', (req, res) => {
     next3Months.push({
       key,
       label,
+      passport: passportCount,
       pass: passCount,
       card: cardCount,
       visa: visaCount,
-      total: passCount + cardCount + visaCount,
+      total: passportCount + passCount + cardCount + visaCount,
     });
   }
 
@@ -418,6 +421,7 @@ app.get('/api/overview', (req, res) => {
   const expiryAlerts = [];
   for (const emp of activeEmployees) {
     const checks = [
+      { field: 'Passport', dateStr: emp.passport_expiry },
       { field: 'Contingent Card', dateStr: emp.contingent_card_expiry || emp.medical_expiry },
       { field: 'Visa', dateStr: emp.visa_expiry },
       { field: 'Airside Pass', dateStr: emp.airside_pass_expiry },
@@ -437,6 +441,8 @@ app.get('/api/overview', (req, res) => {
           teamName: teamNameMap[emp.team_id] || emp.team_id,
           documentType: c.field,
           expiryDate: c.dateStr,
+          passportNo: emp.passport_no || '',
+          passportExpiry: emp.passport_expiry || '',
           airsidePassExpiry: emp.airside_pass_expiry || '',
           contingentCardExpiry: emp.contingent_card_expiry || emp.medical_expiry || '',
           visaExpiry: emp.visa_expiry || '',

@@ -38,6 +38,8 @@ export default function StaffDirectory({
     skill: 'TECHNICIAN',
     status: 'ACTIVE',
     presetId: '2d-2off',
+    passportNo: '',
+    passportExpiry: '',
     airsidePassExpiry: '',
     visaExpiry: '',
     contingentCardExpiry: '',
@@ -69,6 +71,8 @@ export default function StaffDirectory({
       skill: 'TECHNICIAN',
       status: 'ACTIVE',
       presetId: '2d-2off',
+      passportNo: '',
+      passportExpiry: '',
       airsidePassExpiry: '',
       visaExpiry: '',
       contingentCardExpiry: '',
@@ -88,6 +92,8 @@ export default function StaffDirectory({
       skill: emp.skill || 'TECHNICIAN',
       status: emp.status || 'ACTIVE',
       presetId: '',
+      passportNo: emp.passport_no || '',
+      passportExpiry: emp.passport_expiry || '',
       airsidePassExpiry: emp.airside_pass_expiry || '',
       visaExpiry: emp.visa_expiry || '',
       contingentCardExpiry: emp.contingent_card_expiry || emp.medical_expiry || '',
@@ -138,6 +144,8 @@ export default function StaffDirectory({
             uudsNo: form.uudsNo,
             contingentNo: form.contingentNo,
             skill: form.skill,
+            passportNo: form.passportNo,
+            passportExpiry: form.passportExpiry,
             airsidePassExpiry: form.airsidePassExpiry,
             visaExpiry: form.visaExpiry,
             contingentCardExpiry: form.contingentCardExpiry,
@@ -160,6 +168,8 @@ export default function StaffDirectory({
             contingentNo: form.contingentNo,
             skill: form.skill,
             status: form.status,
+            passportNo: form.passportNo,
+            passportExpiry: form.passportExpiry,
             airsidePassExpiry: form.airsidePassExpiry,
             visaExpiry: form.visaExpiry,
             contingentCardExpiry: form.contingentCardExpiry,
@@ -468,6 +478,28 @@ export default function StaffDirectory({
                     placeholder="050-XXXXXXX"
                     value={form.mobileNo}
                     onChange={(e) => setForm((f) => ({ ...f, mobileNo: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-700">Passport Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. A1234567"
+                    value={form.passportNo}
+                    onChange={(e) => setForm((f) => ({ ...f, passportNo: e.target.value.toUpperCase() }))}
+                    className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px]"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-bold text-slate-700">Passport Expiry</label>
+                  <input
+                    type="date"
+                    value={form.passportExpiry}
+                    onChange={(e) => setForm((f) => ({ ...f, passportExpiry: e.target.value }))}
                     className="w-full rounded-xl border border-slate-200 px-2 py-1.5 text-[11px]"
                   />
                 </div>

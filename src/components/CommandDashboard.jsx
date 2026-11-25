@@ -40,7 +40,7 @@ export default function CommandDashboard({
   const [currentTime, setCurrentTime] = useState(new Date());
   const [expiryModalMonth, setExpiryModalMonth] = useState(null); // null or { key: '2026-11', label: 'Nov 2026' }
   const [selectedStaffToEdit, setSelectedStaffToEdit] = useState(null); // emp object to update inline
-  const [editForm, setEditForm] = useState({ airsidePassExpiry: '', contingentCardExpiry: '', visaExpiry: '' });
+  const [editForm, setEditForm] = useState({ passportExpiry: '', airsidePassExpiry: '', contingentCardExpiry: '', visaExpiry: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -73,6 +73,7 @@ export default function CommandDashboard({
   const handleOpenEdit = (emp) => {
     setSelectedStaffToEdit(emp);
     setEditForm({
+      passportExpiry: emp.passportExpiry || emp.passport_expiry || '',
       airsidePassExpiry: emp.airsidePassExpiry || emp.airside_pass_expiry || '',
       contingentCardExpiry: emp.contingentCardExpiry || emp.contingent_card_expiry || '',
       visaExpiry: emp.visaExpiry || emp.visa_expiry || '',
@@ -87,6 +88,7 @@ export default function CommandDashboard({
       await apiFetch(`/api/employees/${selectedStaffToEdit.employeeId || selectedStaffToEdit.id}`, {
         method: 'PATCH',
         body: JSON.stringify({
+          passportExpiry: editForm.passportExpiry,
           airsidePassExpiry: editForm.airsidePassExpiry,
           contingentCardExpiry: editForm.contingentCardExpiry,
           medicalExpiry: editForm.contingentCardExpiry,
@@ -101,6 +103,25 @@ export default function CommandDashboard({
     } finally {
       setSaving(false);
     }
+  };
+
+  // Standard aviation date format: 11-Nov-2026
+  const formatDisplayDate = (dateVal) => {
+    if (!dateVal) return '-';
+    let d;
+    if (typeof dateVal === 'string' && dateVal.includes('-')) {
+      const parts = dateVal.split('-');
+      if (parts.length === 3) d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      else d = new Date(dateVal);
+    } else {
+      d = new Date(dateVal);
+    }
+    if (!d || isNaN(d.getTime())) return dateVal;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mmm = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    return `${dd}-${mmm}-${yyyy}`;
   };
 
   // Filter alerts by modal month (or all next 3 months if key === 'ALL')
@@ -251,7 +272,9 @@ export default function CommandDashboard({
                 <span className="block text-[11px] font-extrabold uppercase tracking-wider text-amber-950">
                   3-Month Expiry
                 </span>
-                <div className="flex items-center gap-1.5 mt-0.5 text-[11px] font-black">
+                <div className="flex items-center gap-1 mt-0.5 text-[10.5px] font-black">
+                  <span className="text-blue-700 font-extrabold">Passport</span>
+                  <span className="text-amber-400">·</span>
                   <span className="text-teal-700 font-extrabold">Pass</span>
                   <span className="text-amber-400">·</span>
                   <span className="text-sky-700 font-extrabold">Card</span>
@@ -274,13 +297,16 @@ export default function CommandDashboard({
                       e.stopPropagation();
                       setExpiryModalMonth(m);
                     }}
-                    className="rounded-xl border border-amber-200/90 bg-white px-2.5 py-1 text-center shadow-xs transition hover:border-amber-400 hover:bg-amber-50 hover:scale-105"
+                    className="rounded-xl border border-amber-200/90 bg-white px-2 py-1 text-center shadow-xs transition hover:border-amber-400 hover:bg-amber-50 hover:scale-105"
                     title={`Click to view and update ${m.label} expiries`}
                   >
                     <div className="text-[11px] font-extrabold text-slate-900 leading-none">
                       {m.label}
                     </div>
-                    <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[11px] font-extrabold">
+                    <div className="mt-0.5 flex items-center justify-center gap-1 text-[10px] font-extrabold">
+                      <span className="inline-flex items-center rounded bg-blue-50 px-1 py-0.5 text-blue-700 font-black" title="Passport Expiries">
+                        PPT:{m.passport ?? 0}
+                      </span>
                       <span className="inline-flex items-center rounded bg-teal-50 px-1 py-0.5 text-teal-700 font-black" title="Airside Pass Expiries">
                         P:{m.pass}
                       </span>
@@ -757,7 +783,7 @@ export default function CommandDashboard({
                     Expiring Documents &amp; Date Updater — {expiryModalMonth.label}
                   </h3>
                   <p className="text-xs text-slate-300">
-                    Review Airside Pass, Contingent Card, and Visa expiry dates. Click any row or &quot;Update Dates&quot; to change.
+                    Review Passport, Airside Pass, Contingent Card, and Visa expiry dates. Click any row or &quot;Update Dates&quot; to change.
                   </p>
                 </div>
               </div>
@@ -804,13 +830,13 @@ export default function CommandDashboard({
                 <div className="flex h-full flex-col items-center justify-center py-20 text-center text-slate-500">
                   <CheckCircle2 className="h-12 w-12 text-emerald-500 mb-2" />
                   <p className="text-base font-bold text-slate-700">No expiring documents in {expiryModalMonth.label}</p>
-                  <p className="text-xs text-slate-400 mt-1">All active staff passes, cards, and visas for this period are current.</p>
+                  <p className="text-xs text-slate-400 mt-1">All active staff passports, passes, cards, and visas for this period are current.</p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs text-slate-500 px-1 font-semibold">
                     <span>Showing {activeModalAlerts.length} expiring record(s)</span>
-                    <span>Click any staff to edit Pass, Card, or Visa dates directly</span>
+                    <span>Click any staff to edit Passport, Pass, Card, or Visa dates directly</span>
                   </div>
 
                   <div className="divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
@@ -827,14 +853,22 @@ export default function CommandDashboard({
                             <div className="flex items-center gap-3 min-w-0">
                               <span
                                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black ${
-                                  emp.documentType.toLowerCase().includes('visa')
+                                  emp.documentType.toLowerCase().includes('passport')
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : emp.documentType.toLowerCase().includes('visa')
                                     ? 'bg-purple-100 text-purple-800'
                                     : emp.documentType.toLowerCase().includes('pass')
                                     ? 'bg-teal-100 text-teal-800'
                                     : 'bg-sky-100 text-sky-800'
                                 }`}
                               >
-                                {emp.documentType.toLowerCase().includes('visa') ? 'V' : emp.documentType.toLowerCase().includes('pass') ? 'P' : 'C'}
+                                {emp.documentType.toLowerCase().includes('passport')
+                                  ? 'PPT'
+                                  : emp.documentType.toLowerCase().includes('visa')
+                                  ? 'V'
+                                  : emp.documentType.toLowerCase().includes('pass')
+                                  ? 'P'
+                                  : 'C'}
                               </span>
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
@@ -848,8 +882,9 @@ export default function CommandDashboard({
                                 </div>
                                 <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
                                   <span>
-                                    Expiring: <strong className="text-slate-800 font-bold">{emp.documentType}</strong> ({emp.expiryDate})
+                                    Expiring: <strong className="text-slate-800 font-bold">{emp.documentType}</strong> ({formatDisplayDate(emp.expiryDate)})
                                   </span>
+                                  {emp.passportNo && <span>Passport: #{emp.passportNo}</span>}
                                   {emp.contingentNo && <span>Contingent: #{emp.contingentNo}</span>}
                                 </div>
                               </div>
@@ -900,7 +935,19 @@ export default function CommandDashboard({
                                 </span>
                               </div>
 
-                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                <div className="rounded-xl border border-blue-200 bg-white p-2.5 shadow-2xs">
+                                  <label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-blue-900">
+                                    <FileText className="h-3.5 w-3.5 text-blue-600" /> Passport Expiry
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={editForm.passportExpiry}
+                                    onChange={(e) => setEditForm((f) => ({ ...f, passportExpiry: e.target.value }))}
+                                    className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
+                                  />
+                                </div>
+
                                 <div className="rounded-xl border border-teal-200 bg-white p-2.5 shadow-2xs">
                                   <label className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-teal-900">
                                     <Plane className="h-3.5 w-3.5 text-teal-600" /> Airside Pass Expiry
