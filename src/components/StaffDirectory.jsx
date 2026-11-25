@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertCircle,
   Edit3,
+  FileSpreadsheet,
   Plus,
   Search,
   Settings,
@@ -189,8 +190,36 @@ export default function StaffDirectory({
     }
   };
 
+  // Standard aviation date format: 11-Nov-2026
+  const formatDisplayDate = (dateVal) => {
+    if (!dateVal || dateVal === '—') return '—';
+    let d;
+    if (typeof dateVal === 'string' && dateVal.includes('-')) {
+      const parts = dateVal.split('-');
+      if (parts.length === 3) d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      else d = new Date(dateVal);
+    } else {
+      d = new Date(dateVal);
+    }
+    if (!d || isNaN(d.getTime())) return dateVal;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mmm = months[d.getMonth()];
+    const yyyy = d.getFullYear();
+    return `${dd}-${mmm}-${yyyy}`;
+  };
+
+  const handleExportExcel = () => {
+    const params = new URLSearchParams();
+    if (teamFilter !== 'all') params.append('teamId', teamFilter);
+    if (statusFilter !== 'ALL') params.append('status', statusFilter);
+    if (search.trim()) params.append('search', search.trim());
+    const url = `/api/export/staff-directory-excel?${params.toString()}`;
+    window.open(url, '_blank');
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* Header & Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div>
@@ -204,14 +233,21 @@ export default function StaffDirectory({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100 shadow-2xs transition active:scale-95 cursor-pointer"
+            title="Export Staff Directory to Excel spreadsheet"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600" /> Export Excel
+          </button>
+          <button
             onClick={() => openTeamSettings(teamFilter !== 'all' ? teamFilter : teams[0]?.id)}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs transition"
           >
             <Settings className="h-4 w-4 text-emerald-600" /> Team WhatsApp & Targets
           </button>
           <button
             onClick={openAdd}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-sm transition"
           >
             <UserPlus className="h-4 w-4 text-sky-400" /> Add New Staff
           </button>
@@ -266,8 +302,8 @@ export default function StaffDirectory({
       </div>
 
       {/* Table */}
-      <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="h-[calc(100vh-275px)] min-h-[480px] overflow-auto">
+      <div className="flex flex-col flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="h-[calc(100vh-215px)] min-h-[520px] overflow-auto">
           <table className="w-full border-collapse text-left text-xs">
             <thead className="sticky top-0 z-10 bg-slate-900 text-white shadow-sm">
               <tr>
@@ -309,8 +345,8 @@ export default function StaffDirectory({
                     )}
                   </td>
                   <td className="px-3 py-2 font-mono text-slate-600">{emp.contingent_no || '—'}</td>
-                  <td className="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">{emp.join_date || '—'}</td>
-                  <td className="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">{emp.dxb_shift_date || '—'}</td>
+                  <td className="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">{formatDisplayDate(emp.join_date)}</td>
+                  <td className="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">{formatDisplayDate(emp.dxb_shift_date)}</td>
                   <td className="px-3 py-2 font-mono text-slate-600 whitespace-nowrap">{emp.mobile_no || '—'}</td>
                   <td className="px-3 py-2 text-slate-600">{emp.defaultPattern?.label || 'Custom'}</td>
                   <td className="px-3 py-2">

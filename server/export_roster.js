@@ -692,3 +692,145 @@ export async function generateOvertimeExcelBuffer(db, month = '2026-11', teamId 
 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
+
+export async function generateStaffDirectoryExcelBuffer(db, teamId = 'all', status = 'ALL', search = '') {
+  let query = `
+    SELECT e.*, t.name AS team_name, t.sort_order
+    FROM employees e
+    JOIN teams t ON t.id = e.team_id
+    WHERE 1=1
+  `;
+  const params = [];
+  if (teamId && teamId !== 'all') {
+    query += ' AND e.team_id = ?';
+    params.push(teamId);
+  }
+  if (status && status !== 'ALL') {
+    query += ' AND e.status = ?';
+    params.push(status);
+  }
+  if (search && search.trim()) {
+    const q = `%${search.trim().toLowerCase()}%`;
+    query += ` AND (LOWER(e.name) LIKE ? OR LOWER(e.uuds_no) LIKE ? OR LOWER(e.contingent_no) LIKE ? OR LOWER(e.skill) LIKE ?)`;
+    params.push(q, q, q, q);
+  }
+  query += ' ORDER BY t.sort_order ASC, CAST(e.seq_no AS INTEGER) ASC, e.id ASC';
+  const rows = db.prepare(query).all(...params);
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'UUDS DXB Workshop Command';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Staff Directory', {
+    pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+  };
+
+  function formatDateAviation(val) {
+    if (!val) return '—';
+    const s = String(val).trim();
+    if (!s || s === '—') return '—';
+    let d;
+    if (s.includes('-')) {
+      const parts = s.split('-');
+      if (parts.length === 3) d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      else d = new Date(s);
+    } else {
+      d = new Date(s);
+    }
+    if (!d || isNaN(d.getTime())) return s;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${String(d.getDate()).padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
+  }
+
+  // Header Title Row 1
+  ws.mergeCells(1, 1, 1, 16);
+  const title1 = ws.getCell(1, 1);
+  title1.value = 'UUDS Aero DWC (DXB Workshop) — Staff Directory';
+  title1.font = { bold: true, size: 14, color: { argb: 'FF0F172A' } };
+  title1.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(1).height = 26;
+
+  // Header Subtitle Row 2
+  const now = new Date();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const todayStr = `${String(now.getDate()).padStart(2, '0')}-${months[now.getMonth()]}-${now.getFullYear()}`;
+  ws.mergeCells(2, 1, 2, 16);
+  const title2 = ws.getCell(2, 1);
+  title2.value = `Export Date: ${todayStr} | Total Staff: ${rows.length} | Active: ${rows.filter((r) => r.status === 'ACTIVE').length}`;
+  title2.font = { bold: true, size: 10, color: { argb: 'FF475569' } };
+  title2.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(2).height = 20;
+
+  // Column Headers (Row 4)
+  const headers = [
+    '#', 'Name', 'Team', 'Skill / Role', 'UUDS ID', 'Contingent No',
+    'Passport No', 'Passport Expiry', 'Airside Pass Expiry', 'Contingent Card Expiry', 'Visa Expiry',
+    'Join Date', 'DXB Shift Date', 'Mobile No', 'Default Rotation', 'Status'
+  ];
+  const hRow = ws.getRow(4);
+  hRow.height = 24;
+  headers.forEach((h, i) => {
+    const c = hRow.getCell(i + 1);
+    c.value = h;
+    c.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+    c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    c.border = thinBorder;
+  });
+
+  let rIdx = 5;
+  rows.forEach((r, idx) => {
+    const row = ws.getRow(rIdx);
+    row.height = 20;
+    let patLabel = 'Custom';
+    try {
+      if (r.default_pattern_json) {
+        const pj = JSON.parse(r.default_pattern_json);
+        if (pj.label) patLabel = pj.label;
+      }
+    } catch {}
+
+    const values = [
+      idx + 1,
+      r.name,
+      r.team_name,
+      r.skill,
+      r.uuds_no || '—',
+      r.contingent_no || '—',
+      r.passport_no || '—',
+      formatDateAviation(r.passport_expiry),
+      formatDateAviation(r.airside_pass_expiry),
+      formatDateAviation(r.contingent_card_expiry || r.medical_expiry),
+      formatDateAviation(r.visa_expiry),
+      formatDateAviation(r.join_date),
+      formatDateAviation(r.dxb_shift_date),
+      r.mobile_no || '—',
+      patLabel,
+      r.status
+    ];
+
+    values.forEach((v, i) => {
+      const c = row.getCell(i + 1);
+      c.value = v;
+      c.font = { size: 9, color: { argb: 'FF0F172A' }, bold: i === 1 };
+      if (idx % 2 === 1) {
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+      }
+      c.alignment = { vertical: 'middle', horizontal: (i === 1) ? 'left' : 'center' };
+      c.border = thinBorder;
+    });
+    rIdx++;
+  });
+
+  const colWidths = [5, 26, 16, 16, 13, 14, 14, 15, 16, 17, 15, 14, 14, 16, 16, 12];
+  colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w; });
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}

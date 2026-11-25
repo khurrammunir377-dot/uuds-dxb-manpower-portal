@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { db, hashPassword, initSchema, listBackups, recordAudit, runDailyBackup, runTx, seedIfEmpty, verifyPassword } from './db.js';
-import { generateOvertimeExcelBuffer, generatePayrollExcelBuffer, generatePayrollPdfBuffer, generateRosterExcelBuffer, generateRosterPdfBuffer } from './export_roster.js';
+import { generateOvertimeExcelBuffer, generatePayrollExcelBuffer, generatePayrollPdfBuffer, generateRosterExcelBuffer, generateRosterPdfBuffer, generateStaffDirectoryExcelBuffer } from './export_roster.js';
 import { parsePdfBuffer, parseSpreadsheetBuffer } from './roster_import.js';
 import {
   PRESET_PATTERNS,
@@ -1881,6 +1881,18 @@ app.get('/api/export/overtime-excel', async (req, res) => {
     res.send(buf);
   } catch (err) {
     res.status(400).json({ error: err.message || 'Overtime Excel export failed' });
+  }
+});
+
+app.get('/api/export/staff-directory-excel', async (req, res) => {
+  try {
+    const { teamId = 'all', status = 'ALL', search = '' } = req.query;
+    const buf = await generateStaffDirectoryExcelBuffer(db, teamId, status, search);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="UUDS_DXB_Staff_Directory_${teamId}.xlsx"`);
+    res.send(buf);
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Staff Directory Excel export failed' });
   }
 });
 
